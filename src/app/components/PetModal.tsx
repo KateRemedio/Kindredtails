@@ -400,6 +400,30 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
                     : memoText}
                 </div>
 
+                {/* Share button */}
+                <div style={{ marginBottom: 10, display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}${window.location.pathname}?pet=${current.id}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        onToast?.("Link copied! 🔗");
+                      }).catch(() => {
+                        onToast?.("Link copied! 🔗");
+                      });
+                    }}
+                    style={{
+                      background: "#F3F4F6", border: "none", cursor: "pointer",
+                      fontSize: 12, color: "#374151", fontWeight: 600,
+                      borderRadius: 10, padding: "7px 14px",
+                      display: "flex", alignItems: "center", gap: 5,
+                      minHeight: 36,
+                    }}
+                  >
+                    🔗 Share memorial
+                  </button>
+                </div>
+
                 {/* Translation */}
                 <div style={{ marginBottom: 12, textAlign: "right" }}>
                   {translated === "__english__" ? (

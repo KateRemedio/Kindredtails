@@ -54,10 +54,18 @@ async function geocodeCity(city: string, country: string) {
   return null;
 }
 
-function addFuzzyJitter(lat: number, lng: number) {
-  const magnitude = 0.05 + Math.random() * 0.10;
-  const angle = Math.random() * 2 * Math.PI;
-  return { lat: lat + magnitude * Math.sin(angle), lng: lng + magnitude * Math.cos(angle) };
+function addFuzzyJitter(origLat: number, origLng: number) {
+  let best = { lat: origLat + 0.005, lng: origLng + 0.005 };
+  let bestDist = Infinity;
+  for (let i = 0; i < 5; i++) {
+    const magnitude = 0.003 + Math.random() * 0.017; // max 0.02°
+    const angle = Math.random() * 2 * Math.PI;
+    const lat = origLat + magnitude * Math.sin(angle);
+    const lng = origLng + magnitude * Math.cos(angle);
+    const dist = Math.sqrt((lat - origLat) ** 2 + (lng - origLng) ** 2);
+    if (dist < bestDist) { bestDist = dist; best = { lat, lng }; }
+  }
+  return best;
 }
 
 app.get(`${BASE}/health`, (c) => c.json({ status: "ok" }));

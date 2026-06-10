@@ -7,6 +7,8 @@ interface Props {
   pets: Pet[];
   setPets: React.Dispatch<React.SetStateAction<Pet[]>>;
   onPetClick: (pet: Pet) => void;
+  panTo?: { lat: number; lng: number } | null;
+  newPetId?: string | null;
 }
 
 interface Cluster {
@@ -68,6 +70,13 @@ const MAP_STYLES = `
     animation: kt-glow 2s ease-in-out infinite;
     box-shadow: 0 2px 8px rgba(6,182,212,0.5);
   }
+  .kt-pin-new {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, #D946EF, #F97316);
+    border: 3px solid white;
+    cursor: pointer;
+    animation: kt-glow-new 1.1s ease-in-out infinite;
+  }
   .kt-cluster {
     border-radius: 50%;
     background: linear-gradient(135deg, #06B6D4, #3B82F6);
@@ -83,11 +92,15 @@ const MAP_STYLES = `
     0%, 100% { box-shadow: 0 2px 8px rgba(6,182,212,0.5), 0 0 0 0 rgba(6,182,212,0.3); }
     50%       { box-shadow: 0 4px 16px rgba(6,182,212,0.7), 0 0 0 6px rgba(6,182,212,0.08); }
   }
+  @keyframes kt-glow-new {
+    0%, 100% { box-shadow: 0 2px 12px rgba(217,70,239,0.7), 0 0 0 0 rgba(217,70,239,0.4); }
+    50%       { box-shadow: 0 4px 22px rgba(217,70,239,0.95), 0 0 0 12px rgba(217,70,239,0.12); }
+  }
   .leaflet-container { font-family: 'Inter', 'Roboto', sans-serif !important; }
   .leaflet-control-attribution { font-size: 10px !important; }
 `;
 
-export function MapView({ pets, setPets, onPetClick }: Props) {
+export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -120,22 +133,32 @@ export function MapView({ pets, setPets, onPetClick }: Props) {
       "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       {
         attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: "abcd",
         maxZoom: 20,
       }
     ).addTo(map);
 
+    // Force Leaflet to recalculate size after first paint in case
+    // the container was measured as 0 before CSS had fully applied.
+    setTimeout(() => map.invalidateSize(), 0);
+
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
     mapRef.current = map;
     setReady(true);
-
     return () => {
       map.remove();
       mapRef.current = null;
     };
   }, []);
+
+  // Fly to new pet location when panTo changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !panTo) return;
+    map.flyTo([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10), { duration: 1.5 });
+  }, [panTo]);
 
   // Fetch pets for the visible bounds (debounced 300ms)
   const fetchBounds = useCallback(async () => {
@@ -196,8 +219,12 @@ export function MapView({ pets, setPets, onPetClick }: Props) {
       let marker: L.Marker;
 
       if (cluster.pets.length === 1) {
-        marker = L.marker([cluster.lat, cluster.lng], { icon: pinIcon() });
         const pet = cluster.pets[0];
+        const isNew = newPetId != null && pet.id === newPetId;
+        const icon = isNew
+          ? L.divIcon({ html: `<div class="kt-pin-new"></div>`, className: "kt-icon-wrap", iconSize: [22, 22], iconAnchor: [11, 11] })
+          : pinIcon();
+        marker = L.marker([cluster.lat, cluster.lng], { icon });
         marker.on("click", () => onPetClick(pet));
       } else {
         marker = L.marker([cluster.lat, cluster.lng], {
@@ -213,12 +240,16 @@ export function MapView({ pets, setPets, onPetClick }: Props) {
       marker.addTo(map);
       markersRef.current.push(marker);
     }
-  }, [pets, zoom, onPetClick]);
+  }, [pets, zoom, onPetClick, newPetId]);
 
   return (
     <div
       ref={mapDivRef}
-      style={{ width: "100%", height: "100%", background: "#F8FAFC" }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "#F8FAFC",
+      }}
     />
   );
 }

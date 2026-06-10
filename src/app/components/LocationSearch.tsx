@@ -19,12 +19,14 @@ export function LocationSearch({ onSelect, required }: Props) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<LocationResult | null>(null);
+  const [noResults, setNoResults] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback(async (q: string) => {
-    if (q.trim().length < 2) { setResults([]); setOpen(false); return; }
+    if (q.trim().length < 2) { setResults([]); setOpen(false); setNoResults(false); return; }
     setLoading(true);
+    setNoResults(false);
     try {
       const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=6&featuretype=city`;
       const res = await fetch(url, { headers: { "Accept-Language": "en" } });
@@ -47,6 +49,7 @@ export function LocationSearch({ onSelect, required }: Props) {
         .filter((r) => r.city);
       setResults(mapped);
       setOpen(mapped.length > 0);
+      setNoResults(mapped.length === 0);
     } catch {
       setResults([]);
       setOpen(false);
@@ -58,6 +61,7 @@ export function LocationSearch({ onSelect, required }: Props) {
     const val = e.target.value;
     setQuery(val);
     setSelected(null);
+    setNoResults(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => search(val), 350);
   };
@@ -133,6 +137,12 @@ export function LocationSearch({ onSelect, required }: Props) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {noResults && !loading && !open && (
+        <div style={{ marginTop: 4, fontSize: 12, color: "#EF4444", fontWeight: 500 }}>
+          City not found — please try another name or spelling.
         </div>
       )}
 
