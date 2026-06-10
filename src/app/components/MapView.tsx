@@ -173,7 +173,10 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !panTo) return;
-    map.flyTo([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10), { duration: 1.5 });
+    map.flyTo([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10), {
+      duration: 1.5,
+      noMoveStart: true,
+    });
   }, [panTo]);
 
   // Initial load: fetch ALL pets directly from Supabase (bypasses Edge Function)
