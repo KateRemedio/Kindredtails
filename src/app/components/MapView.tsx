@@ -8,7 +8,6 @@ interface Props {
   pets: Pet[];
   setPets: React.Dispatch<React.SetStateAction<Pet[]>>;
   onPetClick: (pet: Pet) => void;
-  panTo?: { lat: number; lng: number } | null;
   newPetId?: string | null;
 }
 
@@ -110,6 +109,11 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   const [zoom, setZoom] = useState(3);
   const [ready, setReady] = useState(false);
 
+  // Search bar state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+
   const mergePets = useCallback((incoming: Pet[]) => {
     for (const pet of incoming) {
       seenPetsRef.current.set(pet.id, pet);
@@ -145,7 +149,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         subdomains: "abcd",
         maxZoom: 20,
         keepBuffer: 4,
-        bounds: WORLD_BOUNDS, // tile layer also respects bounds
+        bounds: WORLD_BOUNDS,
       }
     ).addTo(map);
 
@@ -180,6 +184,47 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
     fetchAllPets();
   }, [ready, fetchAllPets]);
 
+  // Map search using Nominatim
+  const handleSearch = useCallback(async () => {
+    const query = searchQuery.trim();
+    if (!query) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    setSearching(true);
+    setSearchError("");
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+        { headers: { "User-Agent": "KindredTails/1.0 memorial-app" } }
+      );
+      const data = await res.json();
+      if (data?.[0]) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        // Clamp to world bounds before setting view
+        const clampedLat = Math.max(-75, Math.min(85, lat));
+        const clampedLng = Math.max(-180, Math.min(180, lng));
+        map.setView([clampedLat, clampedLng], 8);
+        setSearchQuery("");
+      } else {
+        setSearchError("Location not found");
+        setTimeout(() => setSearchError(""), 3000);
+      }
+    } catch {
+      setSearchError("Search failed, try again");
+      setTimeout(() => setSearchError(""), 3000);
+    }
+
+    setSearching(false);
+  }, [searchQuery]);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSearch();
+  };
+
+  // Re-render markers when pets or zoom changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -217,13 +262,94 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   }, [pets, zoom, onPetClick, newPetId]);
 
   return (
-    <div
-      ref={mapDivRef}
-      style={{
+    <div style={{ position: "absolute", inset: 0 }}>
+      {/* Map container */}
+      <div
+        ref={mapDivRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "#aec8d0",
+        }}
+      />
+
+      {/* Search bar — floating top center of map */}
+      <div style={{
         position: "absolute",
-        inset: 0,
-        background: "#aec8d0",
-      }}
-    />
+        top: 16,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 900,
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "white",
+        borderRadius: 50,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+        padding: "6px 6px 6px 16px",
+        width: "min(320px, calc(100vw - 180px))",
+      }}>
+        <span style={{ fontSize: 14, flexShrink: 0 }}>🔍</span>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
+          placeholder="Search city or country…"
+          style={{
+            flex: 1,
+            border: "none",
+            outline: "none",
+            fontSize: 13,
+            color: "#111827",
+            background: "transparent",
+            fontFamily: "'Inter','Roboto',sans-serif",
+            minWidth: 0,
+          }}
+        />
+        <button
+          onClick={handleSearch}
+          disabled={searching || !searchQuery.trim()}
+          style={{
+            padding: "7px 14px",
+            borderRadius: 50,
+            border: "none",
+            background: searching || !searchQuery.trim()
+              ? "#E5E7EB"
+              : "linear-gradient(135deg,#06B6D4,#3B82F6)",
+            color: searching || !searchQuery.trim() ? "#9CA3AF" : "white",
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: searching || !searchQuery.trim() ? "not-allowed" : "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+            minHeight: 32,
+          }}
+        >
+          {searching ? "…" : "Go"}
+        </button>
+      </div>
+
+      {/* Search error toast */}
+      {searchError && (
+        <div style={{
+          position: "absolute",
+          top: 68,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 900,
+          background: "#FEF2F2",
+          color: "#EF4444",
+          fontSize: 12,
+          fontWeight: 600,
+          borderRadius: 20,
+          padding: "6px 16px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          whiteSpace: "nowrap",
+        }}>
+          {searchError}
+        </div>
+      )}
+    </div>
   );
 }
