@@ -157,10 +157,15 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     map.on("zoomend", () => setZoom(map.getZoom()));
 
+    // Invalidate map size when container resizes (fixes grey bar on sidebar toggle)
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(mapDivRef.current!);
+
     mapRef.current = map;
     setReady(true);
 
     return () => {
+      ro.disconnect();
       map.remove();
       mapRef.current = null;
     };
