@@ -112,8 +112,18 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Accumulates every pet ever seen — keyed by ID so duplicates are deduped
+  const seenPetsRef = useRef<Map<string, Pet>>(new Map());
   const [zoom, setZoom] = useState(3);
   const [ready, setReady] = useState(false);
+
+  // Merge incoming pets into the seen-set, then flush to parent state
+  const mergePets = useCallback((incoming: Pet[]) => {
+    for (const pet of incoming) {
+      seenPetsRef.current.set(pet.id, pet);
+    }
+    setPets(Array.from(seenPetsRef.current.values()));
+  }, [setPets]);
 
   // Inject map marker styles once
   useEffect(() => {
@@ -175,18 +185,18 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
         .select("id, pet_name, pet_type, lat_fuzzy, lng_fuzzy, city, country, memorial_text, photo_url, personality_tags, flowers, treats, toys, created_at")
         .limit(500);
       if (error) throw error;
-      setPets((data as Pet[]) || []);
+      mergePets((data as Pet[]) || []);
     } catch (e) {
       console.log("Initial pets fetch error:", e);
     }
-  }, [setPets]);
+  }, [mergePets]);
 
   useEffect(() => {
     if (!ready) return;
     fetchAllPets();
   }, [ready, fetchAllPets]);
 
-  // Fetch pets for the visible bounds (debounced 300ms) — subsequent move/zoom only
+  // Fetch pets for the visible bounds (debounced 300ms) — merges into existing set
   const fetchBounds = useCallback(async () => {
     const map = mapRef.current;
     if (!map) return;
@@ -198,11 +208,11 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
         east: b.getEast(),
         west: b.getWest(),
       });
-      setPets(data);
+      mergePets(data);
     } catch (e) {
       console.log("Map fetch error:", e);
     }
-  }, [setPets]);
+  }, [mergePets]);
 
   // Listen to map move/zoom events (bounds-filtered, not on initial load)
   useEffect(() => {
