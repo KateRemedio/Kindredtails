@@ -155,7 +155,6 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         subdomains: "abcd",
         maxZoom: 20,
         keepBuffer: 4,
-        bounds: WORLD_BOUNDS,
       }
     ).addTo(map);
 
@@ -306,7 +305,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       {/* Map container */}
-      <div ref={mapDivRef} style={{ position: "absolute", inset: 0, background: "#aec8d0" }} />
+      <div ref={mapDivRef} style={{ position: "absolute", inset: 0, background: "#F8FAFC" }} />
 
       {/* Search bar — floating top center */}
       <div style={{
