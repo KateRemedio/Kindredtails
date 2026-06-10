@@ -221,8 +221,8 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       fetchTimerRef.current = setTimeout(fetchBounds, 300);
     };
     const onZoom = () => {
-      setZoom(map.getZoom());
       if (!initialLoadComplete.current) return;
+      setZoom(map.getZoom());
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
       fetchTimerRef.current = setTimeout(fetchBounds, 300);
     };
