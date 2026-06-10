@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { sendTribute, getTributeLogs, type Pet, type TributeLog } from "../utils/api";
-import { getSeedCount, getSeedResetAt, useSeed } from "../utils/localStorage";
+import { sendTribute, getTributeLogs, getPet, type Pet, type TributeLog } from "../utils/api";
+import { getSeedCount, getSeedResetAt, useSeed, getOwnerToken } from "../utils/localStorage";
 
 const PET_EMOJI: Record<string, string> = {
   dog: "🐕", cat: "🐈", bird: "🐦", bunny: "🐰",
@@ -102,7 +102,23 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [dropEmoji, setDropEmoji] = useState<{ emoji: string; key: number } | null>(null);
 
-  const isOwner = !!localStorage.getItem('kindred_owner_token_' + pet.id);
+  const [isOwner, setIsOwner] = useState(
+    () => !!localStorage.getItem('kindred_owner_token_' + pet.id)
+  );
+
+  // If the local key is absent (e.g. different device, or localStorage was cleared),
+  // ask the server: send our global owner token and see if it matches.
+  // The server echoes back owner_token only when the tokens match.
+  useEffect(() => {
+    if (isOwner) return;
+    const token = getOwnerToken();
+    getPet(pet.id, token).then((data) => {
+      if (data?.owner_token) {
+        localStorage.setItem('kindred_owner_token_' + pet.id, token);
+        setIsOwner(true);
+      }
+    }).catch(() => {});
+  }, [pet.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { text: memoText, meta } = parseMemoText(current.memorial_text);
   const photos = parsePhotoUrls(current.photo_url);
