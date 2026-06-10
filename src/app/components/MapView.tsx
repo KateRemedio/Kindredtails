@@ -283,7 +283,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       style={{
         position: "absolute",
         inset: 0,
-        background: "#E8E0D8", // matches CartoDB Positron tile color to prevent white flash on pan
+        background: "#aec8d0", // matches CartoDB Positron ocean/water color to prevent jarring flash on pan
       }}
     />
   );
