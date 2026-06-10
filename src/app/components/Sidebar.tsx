@@ -44,8 +44,8 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
   const mobileWrapper: React.CSSProperties = {
     position: "fixed",
     bottom: 0, left: 0, right: 0,
-    height: "72vh",
-    zIndex: 700,
+    maxHeight: "92vh",
+    zIndex: 1000,
     transform: isOpen ? "translateY(0)" : "translateY(100%)",
     transition: "transform 0.35s cubic-bezier(0.4,0,0.2,1)",
     background: "white",

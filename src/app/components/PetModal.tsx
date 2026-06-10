@@ -333,7 +333,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
           className="kt-modal-card"
           style={{
             background: "white", borderRadius: 24, width: "100%",
-            maxWidth: 420, maxHeight: "90vh", overflowY: "auto",
+            maxWidth: 420, maxHeight: "92vh", overflowY: "auto",
             boxShadow: "0 24px 64px rgba(0,0,0,0.16), 0 8px 24px rgba(0,0,0,0.08)",
             position: "relative",
           }}
@@ -473,9 +473,10 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
               <>
                 <div style={{
                   fontFamily: "'Courier Prime','Source Code Pro',monospace",
-                  fontSize: 14, color: "#374151", lineHeight: 1.7,
+                  fontSize: 13, color: "#374151", lineHeight: 1.7,
                   background: "#F9FAFB", borderRadius: 14, padding: 16, marginBottom: 12,
                   border: "1px solid #F3F4F6",
+                  maxHeight: 180, overflowY: "auto",
                 }}>
                   {showTranslation && translated && translated !== "__english__"
                     ? translated
