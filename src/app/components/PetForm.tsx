@@ -5,6 +5,7 @@ import { getOwnerToken, saveUserCity, saveOwnedPet } from "../utils/localStorage
 import { LocationSearch, type LocationResult } from "./LocationSearch";
 
 const PET_TYPES = ["dog", "cat", "bird", "bunny", "reptile", "fish", "other"];
+const META_SEP = "\n\n---kindred-meta---\n";
 
 interface Props {
   onSuccess: (pet: Pet) => void;
@@ -14,6 +15,9 @@ export function PetForm({ onSuccess }: Props) {
   const [petName, setPetName] = useState("");
   const [petType, setPetType] = useState("dog");
   const [memorialText, setMemorialText] = useState("");
+  const [breed, setBreed] = useState("");
+  const [ageYears, setAgeYears] = useState("");
+  const [datePassing, setDatePassing] = useState("");
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageLoading, setImageLoading] = useState(false);
   const [location, setLocation] = useState<LocationResult | null>(null);
@@ -52,23 +56,36 @@ export function PetForm({ onSuccess }: Props) {
         const urls = await Promise.all(imagePreviews.map(uploadPhoto));
         photo_url = urls.length === 1 ? urls[0] : JSON.stringify(urls);
       }
+
+      // Append optional metadata to memorial_text using a special separator
+      const meta: Record<string, string> = {};
+      if (breed.trim()) meta.breed = breed.trim();
+      if (ageYears.trim()) meta.age_years = ageYears.trim();
+      if (datePassing) meta.date_of_passing = datePassing;
+      const fullText = Object.keys(meta).length > 0
+        ? memorialText + META_SEP + JSON.stringify(meta)
+        : memorialText;
+
       const ownerToken = getOwnerToken();
-      console.log("[PetForm] Submitting pet:", { petName, petType, city: location.city, country: location.country });
       const pet = await createPet({
         pet_name: petName,
         pet_type: petType,
-        memorial_text: memorialText,
+        memorial_text: fullText,
         photo_url,
         city: location.city,
         country: location.country,
         owner_token: ownerToken,
       });
-      console.log("[PetForm] Pet created:", pet);
+
+      // Write per-pet owner token using the token from the API response
+      localStorage.setItem(`kindred_owner_token_${pet.id}`, pet.owner_token || ownerToken);
       saveUserCity(location.city, location.country);
       saveOwnedPet(pet.id, ownerToken);
       onSuccess(pet);
+
       // Reset
       setPetName(""); setPetType("dog"); setMemorialText("");
+      setBreed(""); setAgeYears(""); setDatePassing("");
       setImagePreviews([]); setLocation(null);
     } catch (err) {
       console.log("[PetForm] Error:", err);
@@ -126,6 +143,40 @@ export function PetForm({ onSuccess }: Props) {
         />
       </div>
 
+      {/* Optional detail fields */}
+      <div>
+        <label className={label}>Breed <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
+        <input
+          className={input}
+          value={breed}
+          onChange={(e) => setBreed(e.target.value.slice(0, 80))}
+          placeholder="e.g. German Shepherd"
+          maxLength={80}
+        />
+      </div>
+
+      <div>
+        <label className={label}>Age or Years Together <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
+        <input
+          className={input}
+          value={ageYears}
+          onChange={(e) => setAgeYears(e.target.value.slice(0, 40))}
+          placeholder="e.g. 13 years"
+          maxLength={40}
+        />
+      </div>
+
+      <div>
+        <label className={label}>Date of Passing <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
+        <input
+          type="date"
+          className={input}
+          value={datePassing}
+          onChange={(e) => setDatePassing(e.target.value)}
+          max={new Date().toISOString().split("T")[0]}
+        />
+      </div>
+
       {/* Photo(s) — up to 3 */}
       <div>
         <label className={label}>
@@ -133,7 +184,6 @@ export function PetForm({ onSuccess }: Props) {
           <span className="text-gray-400 font-normal normal-case">({imagePreviews.length}/3)</span>
         </label>
 
-        {/* Thumbnails row */}
         {imagePreviews.length > 0 && (
           <div className="flex gap-2 mb-2 flex-wrap">
             {imagePreviews.map((src, i) => (
@@ -201,10 +251,7 @@ export function PetForm({ onSuccess }: Props) {
       {/* Location search */}
       <div>
         <label className={label}>City / Location</label>
-        <LocationSearch
-          onSelect={(r) => setLocation(r)}
-          required
-        />
+        <LocationSearch onSelect={(r) => setLocation(r)} required />
         {location && (
           <div className="mt-1 text-xs text-cyan-600 font-medium">
             📍 {location.city}, {location.country}

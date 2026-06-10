@@ -59,7 +59,7 @@ export async function createPet(payload: {
   pet_type: string;
   memorial_text: string;
   photo_url?: string;
-  personality_tags: string[];
+  personality_tags?: string[];
   city: string;
   country: string;
   owner_token: string;

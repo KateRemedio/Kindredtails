@@ -1,14 +1,32 @@
 import { useState, useEffect, useCallback } from "react";
 import { sendTribute, getTributeLogs, getPet, type Pet, type TributeLog } from "../utils/api";
-import { getOwnerToken, getSeedCount, getSeedResetAt, useSeed, isPetOwner, getPetOwnerToken } from "../utils/localStorage";
+import { getOwnerToken, getSeedCount, getSeedResetAt, useSeed } from "../utils/localStorage";
 
 const PET_EMOJI: Record<string, string> = {
   dog: "🐕", cat: "🐈", bird: "🐦", bunny: "🐰",
   reptile: "🦎", fish: "🐠", other: "🐾",
 };
 const TRIBUTE_EMOJI: Record<string, string> = { flower: "🌸", treat: "🍖", toy: "🧸" };
+const META_SEP = "\n\n---kindred-meta---\n";
 
-// Parse photo_url which may be a single URL or JSON array of URLs
+interface PetMeta {
+  breed?: string;
+  age_years?: string;
+  date_of_passing?: string;
+}
+
+function parseMemoText(raw: string): { text: string; meta: PetMeta } {
+  const idx = raw.indexOf(META_SEP);
+  if (idx === -1) return { text: raw, meta: {} };
+  const text = raw.slice(0, idx);
+  try {
+    const meta = JSON.parse(raw.slice(idx + META_SEP.length));
+    return { text, meta };
+  } catch {
+    return { text, meta: {} };
+  }
+}
+
 function parsePhotoUrls(photoUrl: string | null | undefined): string[] {
   if (!photoUrl) return [];
   try {
@@ -26,12 +44,18 @@ function formatCountdown(ms: number): string {
   return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
 async function getTributerLocation(): Promise<{ city: string; country: string }> {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve({ city: "Anonymous", country: "" });
-
     const timer = setTimeout(() => resolve({ city: "Anonymous", country: "" }), 6000);
-
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         clearTimeout(timer);
@@ -43,13 +67,9 @@ async function getTributerLocation(): Promise<{ city: string; country: string }>
           );
           const data = await res.json();
           const city =
-            data.address?.city ||
-            data.address?.town ||
-            data.address?.village ||
-            data.address?.county ||
-            "Somewhere";
-          const country = data.address?.country || "";
-          resolve({ city, country });
+            data.address?.city || data.address?.town ||
+            data.address?.village || data.address?.county || "Somewhere";
+          resolve({ city, country: data.address?.country || "" });
         } catch {
           resolve({ city: "Anonymous", country: "" });
         }
@@ -77,41 +97,38 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
   const [tributeLoading, setTributeLoading] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [photoIdx, setPhotoIdx] = useState(0);
-  // Translation state
   const [translated, setTranslated] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
-  // Tribute drop animation
   const [dropEmoji, setDropEmoji] = useState<{ emoji: string; key: number } | null>(null);
 
-  const ownerToken = getOwnerToken();
-  // Per-pet stored token wins; fall back to legacy list check or API-returned owner_token
-  const storedPetToken = getPetOwnerToken(pet.id);
-  const [isOwner, setIsOwner] = useState(
-    !!storedPetToken ||
-    isPetOwner(pet.id) ||
-    (typeof pet.owner_token === "string" && pet.owner_token === ownerToken)
+  // ── Ownership detection ──────────────────────────────────────────────────────
+  // Primary: per-pet localStorage key written at creation time.
+  const [isOwner, setIsOwner] = useState<boolean>(
+    () => !!localStorage.getItem(`kindred_owner_token_${pet.id}`)
   );
 
-  const photos = parsePhotoUrls(current.photo_url);
-
-  // API fallback: if this browser created the pet, the server will echo owner_token back
-  // and we can save it so future visits work without the API call.
+  // Fallback for pets created before this feature (e.g. existing memorials):
+  // ask the server — if our global owner token matches the pet's owner_token,
+  // the server echoes it back and we write the per-pet key for next time.
   useEffect(() => {
     if (isOwner) return;
-    const tokenToSend = storedPetToken || ownerToken;
-    getPet(pet.id, tokenToSend).then((data) => {
-      if (data && typeof data.owner_token === "string") {
-        setIsOwner(true);
-        // Persist the per-pet token so next modal open is instant
-        if (!storedPetToken) {
-          localStorage.setItem(`kindred_owner_token_${pet.id}`, tokenToSend);
+    const globalToken = getOwnerToken();
+    getPet(pet.id, globalToken)
+      .then((data) => {
+        if (data?.owner_token) {
+          localStorage.setItem(`kindred_owner_token_${pet.id}`, globalToken);
+          setIsOwner(true);
         }
-      }
-    }).catch(() => {});
-  }, [pet.id, ownerToken, storedPetToken, isOwner]);
+      })
+      .catch(() => {});
+  }, [pet.id, isOwner]);
+  // ────────────────────────────────────────────────────────────────────────────
 
-  // Countdown when seeds exhausted
+  const { text: memoText, meta } = parseMemoText(current.memorial_text);
+  const photos = parsePhotoUrls(current.photo_url);
+
+  // Seed countdown
   useEffect(() => {
     if (seeds > 0) { setCountdown(""); return; }
     const tick = () => {
@@ -124,15 +141,17 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
     return () => clearInterval(id);
   }, [seeds]);
 
-  // Load tribute logs when owner switches to log tab
+  // Load tribute logs when owner opens the log tab
   const loadLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
-      const data = await getTributeLogs(pet.id, storedPetToken || ownerToken);
+      const token =
+        localStorage.getItem(`kindred_owner_token_${pet.id}`) || getOwnerToken();
+      const data = await getTributeLogs(pet.id, token);
       setLogs(data);
     } catch {}
     setLogsLoading(false);
-  }, [pet.id, ownerToken]);
+  }, [pet.id]);
 
   useEffect(() => {
     if (tab === "log" && isOwner) loadLogs();
@@ -144,22 +163,21 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
     setSeeds(getSeedCount());
     setTributeLoading(type);
 
-    // Detect sender location
     setLocating(true);
     const loc = await getTributerLocation();
     setLocating(false);
 
-    // Trigger drop animation
     const emoji = TRIBUTE_EMOJI[type];
     setDropEmoji({ emoji, key: Date.now() });
-    setTimeout(() => setDropEmoji(null), 2200);
+    setTimeout(() => setDropEmoji(null), 2600);
 
     try {
       const counts = await sendTribute(pet.id, type, loc.city, loc.country);
       const updated: Pet = { ...current, ...counts };
       setCurrent(updated);
       onTributeSuccess(updated);
-      onToast?.(`${emoji} You sent a ${type} to ${pet.pet_name}`);
+      const fromLabel = loc.city !== "Anonymous" ? ` from ${loc.city}` : "";
+      onToast?.(`${emoji} You sent a ${type} to ${current.pet_name}${fromLabel}`);
     } catch (e) {
       console.log("Tribute error:", e);
     }
@@ -171,15 +189,14 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
     setTranslating(true);
     try {
       const res = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(current.memorial_text)}&langpair=auto|en`
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(memoText)}&langpair=auto|en`
       );
       const data = await res.json();
       if (data.responseStatus === 200) {
-        const text: string = data.responseData.translatedText;
-        const isAlreadyEn =
-          text.trim().toLowerCase() === current.memorial_text.trim().toLowerCase();
-        setTranslated(isAlreadyEn ? "__english__" : text);
-        if (!isAlreadyEn) setShowTranslation(true);
+        const tx: string = data.responseData.translatedText;
+        const same = tx.trim().toLowerCase() === memoText.trim().toLowerCase();
+        setTranslated(same ? "__english__" : tx);
+        if (!same) setShowTranslation(true);
       }
     } catch {}
     setTranslating(false);
@@ -191,11 +208,11 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
     { type: "toy" as const, count: current.toys },
   ];
 
-  const rotations = [-6, 0, 6];
+  const stackRotations = [-7, 4, -3];
 
   return (
     <>
-      {/* Tribute drop animation */}
+      {/* Parachute tribute drop animation */}
       {dropEmoji && (
         <div
           key={dropEmoji.key}
@@ -203,10 +220,10 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
             position: "fixed",
             top: 0,
             left: "50%",
-            fontSize: 40,
+            fontSize: 42,
             zIndex: 9999,
             pointerEvents: "none",
-            animation: "kt-tribute-drop 2.1s ease-in forwards",
+            animation: "kt-parachute 2.5s cubic-bezier(0.25,0.46,0.45,0.94) forwards",
           }}
         >
           {dropEmoji.emoji}
@@ -214,12 +231,14 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
       )}
 
       <style>{`
-        @keyframes kt-tribute-drop {
-          0%   { top:4%;  transform:translateX(-50%) rotate(0deg);   opacity:1; }
-          20%  {          transform:translateX(calc(-50% - 18px)) rotate(-12deg); }
-          40%  {          transform:translateX(calc(-50% + 18px)) rotate(8deg); }
-          65%  {          transform:translateX(calc(-50% - 10px)) rotate(-5deg); opacity:1; }
-          100% { top:85%; transform:translateX(-50%) rotate(3deg);   opacity:0; }
+        @keyframes kt-parachute {
+          0%   { top: 2%;  transform: translateX(-50%) rotate(0deg);         opacity: 1; }
+          15%  {           transform: translateX(calc(-50% - 22px)) rotate(-14deg); }
+          30%  {           transform: translateX(calc(-50% + 22px)) rotate(10deg);  }
+          45%  {           transform: translateX(calc(-50% - 14px)) rotate(-8deg);  }
+          60%  {           transform: translateX(calc(-50% + 10px)) rotate(5deg);   opacity: 1; }
+          80%  { top: 78%; transform: translateX(calc(-50% - 6px)) rotate(-3deg);   opacity: 0.6; }
+          100% { top: 88%; transform: translateX(-50%) rotate(0deg);         opacity: 0; }
         }
       `}</style>
 
@@ -237,12 +256,8 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
         <div
           className="kt-modal-card"
           style={{
-            background: "white",
-            borderRadius: 24,
-            width: "100%",
-            maxWidth: 420,
-            maxHeight: "90vh",
-            overflowY: "auto",
+            background: "white", borderRadius: 24, width: "100%",
+            maxWidth: 420, maxHeight: "90vh", overflowY: "auto",
             boxShadow: "0 24px 64px rgba(0,0,0,0.16), 0 8px 24px rgba(0,0,0,0.08)",
             position: "relative",
           }}
@@ -262,9 +277,9 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
           >✕</button>
 
           <div style={{ padding: 24 }}>
-            {/* Photo scrapbook */}
+            {/* ── Photo scrapbook ─────────────────────────────────────── */}
             {photos.length > 0 && (
-              <div style={{ position: "relative", height: 170, marginBottom: 12, display: "flex", justifyContent: "center" }}>
+              <div style={{ position: "relative", height: 175, marginBottom: 12, display: "flex", justifyContent: "center" }}>
                 {photos.map((url, i) => {
                   const isActive = i === photoIdx;
                   return (
@@ -273,17 +288,26 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
                       onClick={() => photos.length > 1 && setPhotoIdx((photoIdx + 1) % photos.length)}
                       style={{
                         position: "absolute",
-                        transform: `rotate(${isActive ? 0 : rotations[i % 3]}deg) scale(${isActive ? 1 : 0.95})`,
-                        zIndex: isActive ? 10 : i,
+                        transform: `rotate(${isActive ? 0 : stackRotations[i % 3]}deg) scale(${isActive ? 1 : 0.94})`,
+                        zIndex: isActive ? 10 : photos.length - i,
                         cursor: photos.length > 1 ? "pointer" : "default",
-                        transition: "transform 0.3s ease",
+                        transition: "transform 0.35s cubic-bezier(0.34,1.56,0.64,1)",
                       }}
                     >
-                      <div style={{ padding: 3, background: "linear-gradient(135deg,#06B6D4,#3B82F6)", borderRadius: 16 }}>
+                      <div style={{
+                        padding: 4,
+                        background: isActive
+                          ? "linear-gradient(135deg,#06B6D4,#3B82F6)"
+                          : "#E5E7EB",
+                        borderRadius: 16,
+                        boxShadow: isActive
+                          ? "0 8px 24px rgba(6,182,212,0.35)"
+                          : "0 2px 8px rgba(0,0,0,0.10)",
+                      }}>
                         <img
                           src={url}
                           alt={current.pet_name}
-                          style={{ width: 150, height: 150, objectFit: "cover", borderRadius: 13, display: "block" }}
+                          style={{ width: 152, height: 152, objectFit: "cover", borderRadius: 13, display: "block" }}
                         />
                       </div>
                     </div>
@@ -292,18 +316,20 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
               </div>
             )}
 
-            {/* Photo dots */}
+            {/* Photo dot nav */}
             {photos.length > 1 && (
-              <div style={{ display: "flex", justifyContent: "center", gap: 5, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
                 {photos.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setPhotoIdx(i)}
                     style={{
-                      width: i === photoIdx ? 18 : 6, height: 6, borderRadius: 3,
-                      background: i === photoIdx ? "#06B6D4" : "#E5E7EB",
-                      border: "none", cursor: "pointer", padding: 0, transition: "all 0.3s",
-                      minWidth: 44, minHeight: 44,
+                      width: i === photoIdx ? 20 : 6, height: 6, borderRadius: 3,
+                      background: i === photoIdx
+                        ? "linear-gradient(135deg,#06B6D4,#3B82F6)"
+                        : "#E5E7EB",
+                      border: "none", cursor: "pointer", padding: 0,
+                      transition: "all 0.3s", minWidth: 0, minHeight: 0,
                     }}
                   />
                 ))}
@@ -321,25 +347,32 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
               </div>
             )}
 
-            {/* Name + location */}
+            {/* ── Name + location ─────────────────────────────────────── */}
             <div style={{ textAlign: "center", marginBottom: 16 }}>
               <h2 style={{
                 fontFamily: "'Courier Prime','Source Code Pro',monospace",
                 fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 4,
               }}>{current.pet_name}</h2>
               <p style={{ fontSize: 13, color: "#9CA3AF" }}>
-                {PET_EMOJI[current.pet_type] || "🐾"} {current.pet_type} · {current.city}, {current.country}
+                {PET_EMOJI[current.pet_type] || "🐾"} {current.pet_type}
+                {meta.breed && ` · ${meta.breed}`}
+                {" · "}{current.city}, {current.country}
               </p>
+              {(meta.age_years || meta.date_of_passing) && (
+                <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 3 }}>
+                  {meta.age_years && `🕰 ${meta.age_years}`}
+                  {meta.age_years && meta.date_of_passing && " · "}
+                  {meta.date_of_passing && `🕊 ${formatDate(meta.date_of_passing)}`}
+                </p>
+              )}
             </div>
 
-            {/* Owner tabs */}
+            {/* ── Owner tabs ──────────────────────────────────────────── */}
             {isOwner && (
-              <div
-                style={{
-                  display: "flex", borderRadius: 12, overflow: "hidden",
-                  border: "1px solid #E5E7EB", marginBottom: 16, background: "#F9FAFB",
-                }}
-              >
+              <div style={{
+                display: "flex", borderRadius: 12, overflow: "hidden",
+                border: "1px solid #E5E7EB", marginBottom: 16, background: "#F9FAFB",
+              }}>
                 {(["memorial", "log"] as const).map((t) => (
                   <button
                     key={t}
@@ -359,23 +392,21 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
               </div>
             )}
 
+            {/* ── Memorial tab ─────────────────────────────────────────── */}
             {tab === "memorial" ? (
               <>
-                {/* Memorial text */}
-                <div
-                  style={{
-                    fontFamily: "'Courier Prime','Source Code Pro',monospace",
-                    fontSize: 14, color: "#374151", lineHeight: 1.7,
-                    background: "#F9FAFB", borderRadius: 14, padding: 16, marginBottom: 12,
-                    border: "1px solid #F3F4F6",
-                  }}
-                >
+                <div style={{
+                  fontFamily: "'Courier Prime','Source Code Pro',monospace",
+                  fontSize: 14, color: "#374151", lineHeight: 1.7,
+                  background: "#F9FAFB", borderRadius: 14, padding: 16, marginBottom: 12,
+                  border: "1px solid #F3F4F6",
+                }}>
                   {showTranslation && translated && translated !== "__english__"
                     ? translated
-                    : current.memorial_text}
+                    : memoText}
                 </div>
 
-                {/* Translation link */}
+                {/* Translation */}
                 <div style={{ marginBottom: 12, textAlign: "right" }}>
                   {translated === "__english__" ? (
                     <span style={{ fontSize: 11, color: "#9CA3AF" }}>Already in English</span>
@@ -394,22 +425,19 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
                   )}
                 </div>
 
-                {/* Personality tags */}
+                {/* Personality tags (legacy) */}
                 {(current.personality_tags || []).length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                     {current.personality_tags.map((tag) => (
-                      <span
-                        key={tag}
-                        style={{
-                          fontSize: 12, padding: "4px 10px", borderRadius: 20,
-                          background: "linear-gradient(135deg,#06B6D4,#3B82F6)", color: "white",
-                        }}
-                      >{tag}</span>
+                      <span key={tag} style={{
+                        fontSize: 12, padding: "4px 10px", borderRadius: 20,
+                        background: "linear-gradient(135deg,#06B6D4,#3B82F6)", color: "white",
+                      }}>{tag}</span>
                     ))}
                   </div>
                 )}
 
-                {/* Seeds */}
+                {/* Seeds row */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12, color: "#6B7280" }}>Tribute Seeds:</span>
@@ -470,15 +498,14 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
                 </div>
               </>
             ) : (
-              /* Your Memorial tab — tribute logs */
+              /* ── Your Memorial tab ──────────────────────────────────── */
               <div>
-                {/* Totals */}
+                {/* Tribute totals */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
                   {tributeButtons.map(({ type, count }) => (
                     <div key={type} style={{
                       textAlign: "center", background: "#F9FAFB",
-                      borderRadius: 14, padding: "12px 8px",
-                      border: "1px solid #F3F4F6",
+                      borderRadius: 14, padding: "12px 8px", border: "1px solid #F3F4F6",
                     }}>
                       <div style={{ fontSize: 28 }}>{TRIBUTE_EMOJI[type]}</div>
                       <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
@@ -500,7 +527,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
                     No tributes yet. Share your memorial and watch the love arrive! 🌸
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
                     {logs.map((log) => (
                       <div key={log.id} style={{
                         display: "flex", alignItems: "center", gap: 12,
