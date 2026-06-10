@@ -160,7 +160,22 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     map.flyTo([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10), { duration: 1.5 });
   }, [panTo]);
 
-  // Fetch pets for the visible bounds (debounced 300ms)
+  // Initial load: fetch ALL pets with no bounds restriction
+  const fetchAllPets = useCallback(async () => {
+    try {
+      const data = await getPets({ north: 90, south: -90, east: 180, west: -180 });
+      setPets(data);
+    } catch (e) {
+      console.log("Initial pets fetch error:", e);
+    }
+  }, [setPets]);
+
+  useEffect(() => {
+    if (!ready) return;
+    fetchAllPets();
+  }, [ready, fetchAllPets]);
+
+  // Fetch pets for the visible bounds (debounced 300ms) — subsequent move/zoom only
   const fetchBounds = useCallback(async () => {
     const map = mapRef.current;
     if (!map) return;
@@ -178,7 +193,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     }
   }, [setPets]);
 
-  // Listen to map move/zoom events
+  // Listen to map move/zoom events (bounds-filtered, not on initial load)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -195,7 +210,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
 
     map.on("moveend", onMove);
     map.on("zoomend", onZoom);
-    fetchBounds();
 
     return () => {
       map.off("moveend", onMove);
