@@ -18,7 +18,6 @@ interface Cluster {
   lng: number;
 }
 
-// Geographic distance-based clustering — no map instance needed
 function computeClusters(pets: Pet[], zoom: number): Cluster[] {
   const radius = zoom < 3 ? 15 : zoom < 5 ? 8 : zoom < 7 ? 3 : zoom < 9 ? 1 : zoom < 11 ? 0.3 : 0.05;
   const clusters: Cluster[] = [];
@@ -101,16 +100,16 @@ const MAP_STYLES = `
   .leaflet-control-attribution { font-size: 10px !important; }
 `;
 
-export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
+const WORLD_BOUNDS: L.LatLngBoundsExpression = [[-75, -180], [85, 180]];
+
+export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-  // Accumulates every pet ever seen — keyed by ID so duplicates are deduped
   const seenPetsRef = useRef<Map<string, Pet>>(new Map());
   const [zoom, setZoom] = useState(3);
   const [ready, setReady] = useState(false);
 
-  // Merge incoming pets into the seen-set, then flush to parent state
   const mergePets = useCallback((incoming: Pet[]) => {
     for (const pet of incoming) {
       seenPetsRef.current.set(pet.id, pet);
@@ -118,7 +117,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     setPets(Array.from(seenPetsRef.current.values()));
   }, [setPets]);
 
-  // Inject map marker styles once
   useEffect(() => {
     const style = document.createElement("style");
     style.id = "kindred-map-styles";
@@ -127,7 +125,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     return () => document.getElementById("kindred-map-styles")?.remove();
   }, []);
 
-  // Initialize the Leaflet map
   useEffect(() => {
     if (!mapDivRef.current || mapRef.current) return;
 
@@ -137,27 +134,23 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       minZoom: 2,
       maxZoom: 18,
       zoomControl: false,
-      maxBounds: [[-90, -180], [90, 180]], // locks to single world copy, no infinite panning
-      maxBoundsViscosity: 1.0,             // hard edges, no rubber-band drift
+      maxBounds: WORLD_BOUNDS,
+      maxBoundsViscosity: 1.0,
     });
 
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: "abcd",
         maxZoom: 20,
         keepBuffer: 4,
+        bounds: WORLD_BOUNDS, // tile layer also respects bounds
       }
     ).addTo(map);
 
-    // Force Leaflet to recalculate size after first paint
     setTimeout(() => map.invalidateSize(), 0);
-
     L.control.zoom({ position: "bottomright" }).addTo(map);
-
-    // Track zoom level for clustering — no bounds fetch
     map.on("zoomend", () => setZoom(map.getZoom()));
 
     mapRef.current = map;
@@ -169,14 +162,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     };
   }, []);
 
-  // Pan to new pet location when panTo changes — setView (instant) keeps maxBounds intact
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !panTo) return;
-    map.setView([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10));
-  }, [panTo]);
-
-  // Initial load: fetch ALL pets directly from Supabase (bypasses Edge Function)
   const fetchAllPets = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -195,12 +180,10 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     fetchAllPets();
   }, [ready, fetchAllPets]);
 
-  // Re-render markers when pets or zoom changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Clear existing markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
