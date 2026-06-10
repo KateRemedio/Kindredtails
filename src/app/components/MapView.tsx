@@ -119,6 +119,18 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   const [searchError, setSearchError] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close suggestions when clicking outside the search container
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSuggestions([]);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const mergePets = useCallback((incoming: Pet[]) => {
     for (const pet of incoming) {
@@ -308,7 +320,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
       <div ref={mapDivRef} style={{ position: "absolute", inset: 0, background: "#F8FAFC" }} />
 
       {/* Search bar — floating top center */}
-      <div style={{
+      <div ref={searchContainerRef} style={{
         position: "absolute",
         top: 16,
         left: "50%",
