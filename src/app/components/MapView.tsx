@@ -118,6 +118,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -125,7 +126,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
-        setSuggestions([]);
+        setShowSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -215,11 +216,12 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
     map.setView([clampedLat, clampedLng], 8);
     setSearchQuery("");
     setSuggestions([]);
+    setShowSuggestions(false);
   }, []);
 
   // Fetch autocomplete suggestions (debounced 400ms)
   const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.trim().length < 2) { setSuggestions([]); return; }
+    if (query.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
@@ -232,6 +234,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         lng: parseFloat(item.lon),
       }));
       setSuggestions(results);
+      setShowSuggestions(results.length > 0);
     } catch {
       setSuggestions([]);
     }
@@ -254,7 +257,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
       }
     }
     if (e.key === "Escape") {
-      setSuggestions([]);
+      setShowSuggestions(false);
     }
   };
 
@@ -333,7 +336,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
           alignItems: "center",
           gap: 6,
           background: "white",
-          borderRadius: suggestions.length > 0 ? "20px 20px 0 0" : 50,
+          borderRadius: showSuggestions ? "20px 20px 0 0" : 50,
           boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
           padding: "6px 6px 6px 16px",
         }}>
@@ -343,6 +346,8 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
             value={searchQuery}
             onChange={handleQueryChange}
             onKeyDown={handleSearchKeyDown}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             placeholder="Search city or country…"
             style={{
               flex: 1,
@@ -379,7 +384,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         </div>
 
         {/* Autocomplete dropdown */}
-        {suggestions.length > 0 && (
+        {showSuggestions && suggestions.length > 0 && (
           <div style={{
             background: "white",
             borderRadius: "0 0 16px 16px",
