@@ -1,14 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { createClient } from "@supabase/supabase-js";
 import { getPets, type Pet } from "../utils/api";
-import { projectId, publicAnonKey } from "/utils/supabase/info";
-
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
+import { supabase } from "../utils/supabaseClient";
 
 interface Props {
   pets: Pet[];
