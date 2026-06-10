@@ -17,10 +17,15 @@ interface Cluster {
   lng: number;
 }
 
+interface Suggestion {
+  label: string;
+  lat: number;
+  lng: number;
+}
+
 function computeClusters(pets: Pet[], zoom: number): Cluster[] {
   const radius = zoom < 3 ? 15 : zoom < 5 ? 8 : zoom < 7 ? 3 : zoom < 9 ? 1 : zoom < 11 ? 0.3 : 0.05;
   const clusters: Cluster[] = [];
-
   for (const pet of pets) {
     let merged = false;
     for (const c of clusters) {
@@ -36,7 +41,6 @@ function computeClusters(pets: Pet[], zoom: number): Cluster[] {
     }
     if (!merged) clusters.push({ pets: [pet], lat: pet.lat_fuzzy, lng: pet.lng_fuzzy });
   }
-
   return clusters;
 }
 
@@ -109,10 +113,13 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   const [zoom, setZoom] = useState(3);
   const [ready, setReady] = useState(false);
 
-  // Search bar state
+  // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const mergePets = useCallback((incoming: Pet[]) => {
     for (const pet of incoming) {
@@ -157,7 +164,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     map.on("zoomend", () => setZoom(map.getZoom()));
 
-    // Invalidate map size when container resizes (fixes grey bar on sidebar toggle)
+    // Fix grey bar when sidebar resizes container
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(mapDivRef.current!);
 
@@ -189,16 +196,65 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
     fetchAllPets();
   }, [ready, fetchAllPets]);
 
-  // Map search using Nominatim
-  const handleSearch = useCallback(async () => {
-    const query = searchQuery.trim();
-    if (!query) return;
+  // Fly map to a result
+  const flyToResult = useCallback((lat: number, lng: number) => {
     const map = mapRef.current;
     if (!map) return;
+    const clampedLat = Math.max(-75, Math.min(85, lat));
+    const clampedLng = Math.max(-180, Math.min(180, lng));
+    map.setView([clampedLat, clampedLng], 8);
+    setSearchQuery("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }, []);
 
+  // Fetch autocomplete suggestions (debounced 400ms)
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
+        { headers: { "User-Agent": "KindredTails/1.0 memorial-app" } }
+      );
+      const data = await res.json();
+      const results: Suggestion[] = (data || []).map((item: any) => ({
+        label: item.display_name,
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon),
+      }));
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    } catch {
+      setSuggestions([]);
+    }
+  }, []);
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    setSearchError("");
+    if (suggestTimer.current) clearTimeout(suggestTimer.current);
+    suggestTimer.current = setTimeout(() => fetchSuggestions(val), 400);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      if (suggestions.length > 0) {
+        flyToResult(suggestions[0].lat, suggestions[0].lng);
+      } else {
+        handleManualSearch();
+      }
+    }
+    if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleManualSearch = useCallback(async () => {
+    const query = searchQuery.trim();
+    if (!query) return;
     setSearching(true);
     setSearchError("");
-
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
@@ -206,13 +262,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
       );
       const data = await res.json();
       if (data?.[0]) {
-        const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lon);
-        // Clamp to world bounds before setting view
-        const clampedLat = Math.max(-75, Math.min(85, lat));
-        const clampedLng = Math.max(-180, Math.min(180, lng));
-        map.setView([clampedLat, clampedLng], 8);
-        setSearchQuery("");
+        flyToResult(parseFloat(data[0].lat), parseFloat(data[0].lon));
       } else {
         setSearchError("Location not found");
         setTimeout(() => setSearchError(""), 3000);
@@ -221,15 +271,10 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
       setSearchError("Search failed, try again");
       setTimeout(() => setSearchError(""), 3000);
     }
-
     setSearching(false);
-  }, [searchQuery]);
+  }, [searchQuery, flyToResult]);
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSearch();
-  };
-
-  // Re-render markers when pets or zoom changes
+  // Re-render markers
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -241,7 +286,6 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
 
     for (const cluster of clusters) {
       let marker: L.Marker;
-
       if (cluster.pets.length === 1) {
         const pet = cluster.pets[0];
         const isNew = newPetId != null && pet.id === newPetId;
@@ -251,16 +295,11 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         marker = L.marker([cluster.lat, cluster.lng], { icon });
         marker.on("click", () => onPetClick(pet));
       } else {
-        marker = L.marker([cluster.lat, cluster.lng], {
-          icon: clusterIcon(cluster.pets.length),
-        });
+        marker = L.marker([cluster.lat, cluster.lng], { icon: clusterIcon(cluster.pets.length) });
         const clusterCenter: [number, number] = [cluster.lat, cluster.lng];
         const currentZoom = zoom;
-        marker.on("click", () => {
-          map.setView(clusterCenter, Math.min(currentZoom + 3, 18));
-        });
+        marker.on("click", () => map.setView(clusterCenter, Math.min(currentZoom + 3, 18)));
       }
-
       marker.addTo(map);
       markersRef.current.push(marker);
     }
@@ -269,73 +308,116 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       {/* Map container */}
-      <div
-        ref={mapDivRef}
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "#aec8d0",
-        }}
-      />
+      <div ref={mapDivRef} style={{ position: "absolute", inset: 0, background: "#aec8d0" }} />
 
-      {/* Search bar — floating top center of map */}
+      {/* Search bar — floating top center */}
       <div style={{
         position: "absolute",
         top: 16,
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 900,
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        background: "white",
-        borderRadius: 50,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-        padding: "6px 6px 6px 16px",
-        width: "min(320px, calc(100vw - 180px))",
+        width: "min(360px, calc(100vw - 180px))",
       }}>
-        <span style={{ fontSize: 14, flexShrink: 0 }}>🔍</span>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={handleSearchKeyDown}
-          placeholder="Search city or country…"
-          style={{
-            flex: 1,
-            border: "none",
-            outline: "none",
-            fontSize: 13,
-            color: "#111827",
-            background: "transparent",
-            fontFamily: "'Inter','Roboto',sans-serif",
-            minWidth: 0,
-          }}
-        />
-        <button
-          onClick={handleSearch}
-          disabled={searching || !searchQuery.trim()}
-          style={{
-            padding: "7px 14px",
-            borderRadius: 50,
-            border: "none",
-            background: searching || !searchQuery.trim()
-              ? "#E5E7EB"
-              : "linear-gradient(135deg,#06B6D4,#3B82F6)",
-            color: searching || !searchQuery.trim() ? "#9CA3AF" : "white",
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: searching || !searchQuery.trim() ? "not-allowed" : "pointer",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-            minHeight: 32,
-          }}
-        >
-          {searching ? "…" : "Go"}
-        </button>
+        {/* Input row */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "white",
+          borderRadius: showSuggestions ? "20px 20px 0 0" : 50,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+          padding: "6px 6px 6px 16px",
+        }}>
+          <span style={{ fontSize: 14, flexShrink: 0 }}>🔍</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={handleQueryChange}
+            onKeyDown={handleSearchKeyDown}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            placeholder="Search city or country…"
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              fontSize: 13,
+              color: "#111827",
+              background: "transparent",
+              fontFamily: "'Inter','Roboto',sans-serif",
+              minWidth: 0,
+            }}
+          />
+          <button
+            onClick={handleManualSearch}
+            disabled={searching || !searchQuery.trim()}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 50,
+              border: "none",
+              background: searching || !searchQuery.trim()
+                ? "#E5E7EB"
+                : "linear-gradient(135deg,#06B6D4,#3B82F6)",
+              color: searching || !searchQuery.trim() ? "#9CA3AF" : "white",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: searching || !searchQuery.trim() ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              minHeight: 32,
+            }}
+          >
+            {searching ? "…" : "Go"}
+          </button>
+        </div>
+
+        {/* Autocomplete dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div style={{
+            background: "white",
+            borderRadius: "0 0 16px 16px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            overflow: "hidden",
+            borderTop: "1px solid #F3F4F6",
+          }}>
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onMouseDown={() => flyToResult(s.lat, s.lng)}
+                style={{
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "none",
+                  background: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: 12,
+                  color: "#374151",
+                  borderBottom: i < suggestions.length - 1 ? "1px solid #F9FAFB" : "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontFamily: "'Inter','Roboto',sans-serif",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#F9FAFB")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+              >
+                <span style={{ flexShrink: 0, fontSize: 14 }}>📍</span>
+                <span style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}>
+                  {s.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Search error toast */}
+      {/* Search error */}
       {searchError && (
         <div style={{
           position: "absolute",
