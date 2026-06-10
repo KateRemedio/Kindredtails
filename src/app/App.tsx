@@ -42,6 +42,9 @@ export default function App() {
   }, []);
 
   const handlePetCreated = (pet: Pet) => {
+    if (pet.owner_token) {
+      localStorage.setItem('kindred_owner_token_' + pet.id, pet.owner_token);
+    }
     saveOwnedPet(pet.id, getOwnerToken());
     setPets((prev) => (prev.some((p) => p.id === pet.id) ? prev : [...prev, pet]));
     setSuccessPet(pet);

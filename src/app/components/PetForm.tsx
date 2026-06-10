@@ -77,8 +77,7 @@ export function PetForm({ onSuccess }: Props) {
         owner_token: ownerToken,
       });
 
-      // Write per-pet owner token using the token from the API response
-      localStorage.setItem(`kindred_owner_token_${pet.id}`, pet.owner_token || ownerToken);
+      localStorage.setItem('kindred_owner_token_' + pet.id, pet.owner_token);
       saveUserCity(location.city, location.country);
       saveOwnedPet(pet.id, ownerToken);
       onSuccess(pet);

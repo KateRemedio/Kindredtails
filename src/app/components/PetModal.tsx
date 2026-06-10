@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { sendTribute, getTributeLogs, getPet, type Pet, type TributeLog } from "../utils/api";
-import { getOwnerToken, getSeedCount, getSeedResetAt, useSeed } from "../utils/localStorage";
+import { sendTribute, getTributeLogs, type Pet, type TributeLog } from "../utils/api";
+import { getSeedCount, getSeedResetAt, useSeed } from "../utils/localStorage";
 
 const PET_EMOJI: Record<string, string> = {
   dog: "🐕", cat: "🐈", bird: "🐦", bunny: "🐰",
@@ -54,8 +54,8 @@ function formatDate(iso: string): string {
 
 async function getTributerLocation(): Promise<{ city: string; country: string }> {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve({ city: "Anonymous", country: "" });
-    const timer = setTimeout(() => resolve({ city: "Anonymous", country: "" }), 6000);
+    if (!navigator.geolocation) return resolve({ city: "Unknown location", country: "" });
+    const timer = setTimeout(() => resolve({ city: "Unknown location", country: "" }), 6000);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         clearTimeout(timer);
@@ -68,13 +68,13 @@ async function getTributerLocation(): Promise<{ city: string; country: string }>
           const data = await res.json();
           const city =
             data.address?.city || data.address?.town ||
-            data.address?.village || data.address?.county || "Somewhere";
+            data.address?.village || data.address?.county || "Unknown location";
           resolve({ city, country: data.address?.country || "" });
         } catch {
-          resolve({ city: "Anonymous", country: "" });
+          resolve({ city: "Unknown location", country: "" });
         }
       },
-      () => { clearTimeout(timer); resolve({ city: "Anonymous", country: "" }); },
+      () => { clearTimeout(timer); resolve({ city: "Unknown location", country: "" }); },
       { timeout: 6000, maximumAge: 300_000 }
     );
   });
@@ -102,28 +102,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [dropEmoji, setDropEmoji] = useState<{ emoji: string; key: number } | null>(null);
 
-  // ── Ownership detection ──────────────────────────────────────────────────────
-  // Primary: per-pet localStorage key written at creation time.
-  const [isOwner, setIsOwner] = useState<boolean>(
-    () => !!localStorage.getItem(`kindred_owner_token_${pet.id}`)
-  );
-
-  // Fallback for pets created before this feature (e.g. existing memorials):
-  // ask the server — if our global owner token matches the pet's owner_token,
-  // the server echoes it back and we write the per-pet key for next time.
-  useEffect(() => {
-    if (isOwner) return;
-    const globalToken = getOwnerToken();
-    getPet(pet.id, globalToken)
-      .then((data) => {
-        if (data?.owner_token) {
-          localStorage.setItem(`kindred_owner_token_${pet.id}`, globalToken);
-          setIsOwner(true);
-        }
-      })
-      .catch(() => {});
-  }, [pet.id, isOwner]);
-  // ────────────────────────────────────────────────────────────────────────────
+  const isOwner = !!localStorage.getItem('kindred_owner_token_' + pet.id);
 
   const { text: memoText, meta } = parseMemoText(current.memorial_text);
   const photos = parsePhotoUrls(current.photo_url);
@@ -145,8 +124,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
   const loadLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
-      const token =
-        localStorage.getItem(`kindred_owner_token_${pet.id}`) || getOwnerToken();
+      const token = localStorage.getItem('kindred_owner_token_' + pet.id) || "";
       const data = await getTributeLogs(pet.id, token);
       setLogs(data);
     } catch {}
@@ -176,7 +154,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
       const updated: Pet = { ...current, ...counts };
       setCurrent(updated);
       onTributeSuccess(updated);
-      const fromLabel = loc.city !== "Anonymous" ? ` from ${loc.city}` : "";
+      const fromLabel = loc.city && loc.city !== "Unknown location" ? ` from ${loc.city}` : "";
       onToast?.(`${emoji} You sent a ${type} to ${current.pet_name}${fromLabel}`);
     } catch (e) {
       console.log("Tribute error:", e);

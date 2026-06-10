@@ -1,4 +1,4 @@
-const TARGET_BYTES = 10 * 1024; // 10KB target
+const TARGET_BYTES = 50 * 1024; // 50KB target
 
 export async function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
