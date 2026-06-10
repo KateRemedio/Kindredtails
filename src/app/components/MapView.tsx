@@ -137,6 +137,8 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       minZoom: 2,
       maxZoom: 18,
       zoomControl: false,
+      maxBounds: [[-90, -180], [90, 180]], // locks to single world copy, no infinite panning
+      maxBoundsViscosity: 1.0,             // hard edges, no rubber-band drift
     });
 
     L.tileLayer(
@@ -146,30 +148,32 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: "abcd",
         maxZoom: 20,
+        keepBuffer: 4,
       }
     ).addTo(map);
 
-    // Force Leaflet to recalculate size after first paint in case
-    // the container was measured as 0 before CSS had fully applied.
+    // Force Leaflet to recalculate size after first paint
     setTimeout(() => map.invalidateSize(), 0);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
+    // Track zoom level for clustering — no bounds fetch
     map.on("zoomend", () => setZoom(map.getZoom()));
 
     mapRef.current = map;
     setReady(true);
+
     return () => {
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
-  // Fly to new pet location when panTo changes
+  // Pan to new pet location when panTo changes — setView (instant) keeps maxBounds intact
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !panTo) return;
-    map.flyTo([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10), { duration: 1.5 });
+    map.setView([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10));
   }, [panTo]);
 
   // Initial load: fetch ALL pets directly from Supabase (bypasses Edge Function)
@@ -235,7 +239,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       style={{
         position: "absolute",
         inset: 0,
-        background: "#F8FAFC",
+        background: "#aec8d0",
       }}
     />
   );
