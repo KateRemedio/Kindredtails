@@ -139,6 +139,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       minZoom: 2,
       maxZoom: 18,
       zoomControl: false,
+      worldCopyJump: true,
     });
 
     L.tileLayer(
