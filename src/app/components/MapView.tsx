@@ -149,6 +149,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: "abcd",
         maxZoom: 20,
+        keepBuffer: 4, // keeps more tiles in memory when panning to reduce white flash
       }
     ).addTo(map);
 
