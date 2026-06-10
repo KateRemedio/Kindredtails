@@ -198,6 +198,7 @@ export default function App() {
             onClose={() => setSelectedPet(null)}
             onTributeSuccess={handleTributeSuccess}
             onToast={addToast}
+            onPetDeleted={(id) => setPets((prev) => prev.filter((p) => p.id !== id))}
           />
         )}
       </div>

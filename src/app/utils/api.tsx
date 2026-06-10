@@ -134,3 +134,26 @@ export async function getFeed(): Promise<FeedItem[]> {
   if (!res.ok) return [];
   return res.json();
 }
+
+export async function patchPet(
+  petId: string,
+  ownerToken: string,
+  updates: Partial<Pick<Pet, "pet_name" | "pet_type" | "memorial_text">>
+): Promise<Pet> {
+  const res = await fetch(`${BASE}/pets/${petId}`, {
+    method: "PATCH",
+    headers: { ...HEADERS, "X-Owner-Token": ownerToken },
+    body: JSON.stringify(updates),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Update failed");
+  return data;
+}
+
+export async function deletePet(petId: string, ownerToken: string): Promise<void> {
+  const res = await fetch(`${BASE}/pets/${petId}`, {
+    method: "DELETE",
+    headers: { ...HEADERS, "X-Owner-Token": ownerToken },
+  });
+  if (!res.ok) throw new Error("Delete failed");
+}

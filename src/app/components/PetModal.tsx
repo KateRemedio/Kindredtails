@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { sendTribute, getTributeLogs, getPet, type Pet, type TributeLog } from "../utils/api";
+import { sendTribute, getTributeLogs, getPet, patchPet, deletePet, type Pet, type TributeLog } from "../utils/api";
 import { getSeedCount, getSeedResetAt, useSeed, getOwnerToken } from "../utils/localStorage";
 
+const PET_TYPES = ["dog", "cat", "bird", "bunny", "reptile", "fish", "other"];
 const PET_EMOJI: Record<string, string> = {
   dog: "🐕", cat: "🐈", bird: "🐦", bunny: "🐰",
   reptile: "🦎", fish: "🐠", other: "🐾",
@@ -85,9 +86,10 @@ interface Props {
   onClose: () => void;
   onTributeSuccess: (pet: Pet) => void;
   onToast?: (msg: string) => void;
+  onPetDeleted?: (id: string) => void;
 }
 
-export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
+export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted }: Props) {
   const [current, setCurrent] = useState<Pet>(pet);
   const [seeds, setSeeds] = useState(getSeedCount);
   const [countdown, setCountdown] = useState("");
@@ -105,6 +107,23 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
   const [isOwner, setIsOwner] = useState(
     () => !!localStorage.getItem('kindred_owner_token_' + pet.id)
   );
+
+  // Owner sub-view within the "log" tab
+  const [ownerView, setOwnerView] = useState<"log" | "edit" | "delete">("log");
+
+  // Edit form state
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState("dog");
+  const [editBreed, setEditBreed] = useState("");
+  const [editAge, setEditAge] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editText, setEditText] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  // Delete state
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // If the local key is absent (e.g. different device, or localStorage was cleared),
   // ask the server: send our global owner token and see if it matches.
@@ -196,6 +215,63 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
     setTranslating(false);
   };
 
+  const openEdit = () => {
+    const { text, meta } = parseMemoText(current.memorial_text);
+    setEditName(current.pet_name);
+    setEditType(current.pet_type);
+    setEditBreed(meta.breed || "");
+    setEditAge(meta.age_years || "");
+    setEditDate(meta.date_of_passing || "");
+    setEditText(text);
+    setEditError("");
+    setOwnerView("edit");
+  };
+
+  const handleEditSave = async () => {
+    if (!editName.trim() || !editText.trim()) {
+      setEditError("Pet name and memorial text are required.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const metaObj: Record<string, string> = {};
+      if (editBreed.trim()) metaObj.breed = editBreed.trim();
+      if (editAge.trim()) metaObj.age_years = editAge.trim();
+      if (editDate) metaObj.date_of_passing = editDate;
+      const fullText = Object.keys(metaObj).length > 0
+        ? editText + META_SEP + JSON.stringify(metaObj)
+        : editText;
+      const token = localStorage.getItem("kindred_owner_token_" + pet.id) || "";
+      const updated = await patchPet(pet.id, token, {
+        pet_name: editName.trim(),
+        pet_type: editType,
+        memorial_text: fullText,
+      });
+      setCurrent(updated);
+      setOwnerView("log");
+      onToast?.("Memorial updated ✏️");
+    } catch (err) {
+      setEditError(String(err));
+    }
+    setEditSaving(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleteLoading(true);
+    setDeleteError("");
+    try {
+      const token = localStorage.getItem("kindred_owner_token_" + pet.id) || "";
+      await deletePet(pet.id, token);
+      localStorage.removeItem("kindred_owner_token_" + pet.id);
+      onPetDeleted?.(pet.id);
+      onClose();
+    } catch (err) {
+      setDeleteError(String(err));
+      setDeleteLoading(false);
+    }
+  };
+
   const tributeButtons = [
     { type: "flower" as const, count: current.flowers },
     { type: "treat" as const, count: current.treats },
@@ -203,6 +279,12 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
   ];
 
   const stackRotations = [-7, 4, -3];
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 12px", fontSize: 13, borderRadius: 10,
+    border: "1px solid #E5E7EB", outline: "none", background: "white",
+    boxSizing: "border-box",
+  };
 
   return (
     <>
@@ -518,54 +600,209 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast }: Props) {
             ) : (
               /* ── Your Memorial tab ──────────────────────────────────── */
               <div>
-                {/* Tribute totals */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-                  {tributeButtons.map(({ type, count }) => (
-                    <div key={type} style={{
-                      textAlign: "center", background: "#F9FAFB",
-                      borderRadius: 14, padding: "12px 8px", border: "1px solid #F3F4F6",
-                    }}>
-                      <div style={{ fontSize: 28 }}>{TRIBUTE_EMOJI[type]}</div>
-                      <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}s
-                      </div>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: "#111827" }}>{count}</div>
+
+                {/* ── Edit form ── */}
+                {ownerView === "edit" && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 14 }}>
+                      Edit Memorial ✏️
                     </div>
-                  ))}
-                </div>
 
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-                  Tribute log
-                </div>
-
-                {logsLoading ? (
-                  <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: 24 }}>Loading…</div>
-                ) : logs.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: 24 }}>
-                    No tributes yet. Share your memorial and watch the love arrive! 🌸
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
-                    {logs.map((log) => (
-                      <div key={log.id} style={{
-                        display: "flex", alignItems: "center", gap: 12,
-                        padding: "10px 12px", borderRadius: 12, background: "#F9FAFB",
-                      }}>
-                        <span style={{ fontSize: 22, flexShrink: 0 }}>{TRIBUTE_EMOJI[log.tribute_type]}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
-                            {log.from_city}{log.from_country ? `, ${log.from_country}` : ""}
-                          </div>
-                          <div style={{ fontSize: 11, color: "#9CA3AF" }}>
-                            {new Date(log.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 11, color: "#9CA3AF", textTransform: "capitalize" }}>
-                          {log.tribute_type}
-                        </div>
+                    {[
+                      { label: "Pet Name", node: (
+                        <input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value.slice(0, 100))}
+                          maxLength={100}
+                          style={inputStyle}
+                          placeholder="Pet name"
+                        />
+                      )},
+                      { label: "Pet Type", node: (
+                        <select value={editType} onChange={(e) => setEditType(e.target.value)} style={inputStyle}>
+                          {PET_TYPES.map((t) => (
+                            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                          ))}
+                        </select>
+                      )},
+                      { label: "Breed (optional)", node: (
+                        <input
+                          value={editBreed}
+                          onChange={(e) => setEditBreed(e.target.value.slice(0, 80))}
+                          maxLength={80}
+                          style={inputStyle}
+                          placeholder="e.g. Labrador"
+                        />
+                      )},
+                      { label: "Age or Years Together (optional)", node: (
+                        <input
+                          value={editAge}
+                          onChange={(e) => setEditAge(e.target.value.slice(0, 40))}
+                          maxLength={40}
+                          style={inputStyle}
+                          placeholder="e.g. 13 years"
+                        />
+                      )},
+                      { label: "Date of Passing (optional)", node: (
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          max={new Date().toISOString().split("T")[0]}
+                          style={inputStyle}
+                        />
+                      )},
+                    ].map(({ label, node }) => (
+                      <div key={label} style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+                        {node}
                       </div>
                     ))}
+
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Memorial Text <span style={{ color: editText.length > 900 ? "#EF4444" : "#9CA3AF", fontWeight: 400 }}>({editText.length}/1000)</span>
+                      </div>
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value.slice(0, 1000))}
+                        maxLength={1000}
+                        rows={5}
+                        style={{ ...inputStyle, resize: "none", fontFamily: "'Courier Prime','Source Code Pro',monospace" }}
+                        placeholder="Share a memory…"
+                      />
+                    </div>
+
+                    {editError && (
+                      <div style={{ color: "#EF4444", fontSize: 12, marginBottom: 10, background: "#FEF2F2", borderRadius: 8, padding: "8px 12px" }}>{editError}</div>
+                    )}
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setOwnerView("log")}
+                        style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleEditSave}
+                        disabled={editSaving}
+                        style={{ flex: 2, padding: "11px", borderRadius: 12, border: "none", background: editSaving ? "#F3F4F6" : "linear-gradient(135deg,#06B6D4,#3B82F6)", color: editSaving ? "#9CA3AF" : "white", fontSize: 13, fontWeight: 700, cursor: editSaving ? "not-allowed" : "pointer" }}
+                      >
+                        {editSaving ? "Saving…" : "Save Changes"}
+                      </button>
+                    </div>
                   </div>
+                )}
+
+                {/* ── Delete confirmation ── */}
+                {ownerView === "delete" && (
+                  <div style={{ textAlign: "center", padding: "8px 0" }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>🕊️</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 8 }}>
+                      Are you sure?
+                    </div>
+                    <div style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, marginBottom: 20 }}>
+                      This will permanently remove <strong>{current.pet_name}</strong>'s memorial from the garden. This cannot be undone.
+                    </div>
+
+                    {deleteError && (
+                      <div style={{ color: "#EF4444", fontSize: 12, marginBottom: 12, background: "#FEF2F2", borderRadius: 8, padding: "8px 12px" }}>{deleteError}</div>
+                    )}
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setOwnerView("log")}
+                        style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        Keep Memorial
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteConfirm}
+                        disabled={deleteLoading}
+                        style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: deleteLoading ? "#F3F4F6" : "#EF4444", color: deleteLoading ? "#9CA3AF" : "white", fontSize: 13, fontWeight: 700, cursor: deleteLoading ? "not-allowed" : "pointer" }}
+                      >
+                        {deleteLoading ? "Removing…" : "Remove Forever"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Log view (default) ── */}
+                {ownerView === "log" && (
+                  <>
+                    {/* Edit button */}
+                    <button
+                      type="button"
+                      onClick={openEdit}
+                      style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 8, textAlign: "center" }}
+                    >
+                      Edit Memorial ✏️
+                    </button>
+
+                    {/* Delete link */}
+                    <button
+                      type="button"
+                      onClick={() => { setDeleteError(""); setOwnerView("delete"); }}
+                      style={{ width: "100%", padding: "4px", background: "none", border: "none", color: "#EF4444", fontSize: 12, cursor: "pointer", marginBottom: 16, textAlign: "center" }}
+                    >
+                      Remove this memorial
+                    </button>
+
+                    {/* Tribute totals */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                      {tributeButtons.map(({ type, count }) => (
+                        <div key={type} style={{
+                          textAlign: "center", background: "#F9FAFB",
+                          borderRadius: 14, padding: "12px 8px", border: "1px solid #F3F4F6",
+                        }}>
+                          <div style={{ fontSize: 28 }}>{TRIBUTE_EMOJI[type]}</div>
+                          <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}s
+                          </div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: "#111827" }}>{count}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
+                      Tribute log
+                    </div>
+
+                    {logsLoading ? (
+                      <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: 24 }}>Loading…</div>
+                    ) : logs.length === 0 ? (
+                      <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: 24 }}>
+                        No tributes yet. Share your memorial and watch the love arrive! 🌸
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                        {logs.map((log) => (
+                          <div key={log.id} style={{
+                            display: "flex", alignItems: "center", gap: 12,
+                            padding: "10px 12px", borderRadius: 12, background: "#F9FAFB",
+                          }}>
+                            <span style={{ fontSize: 22, flexShrink: 0 }}>{TRIBUTE_EMOJI[log.tribute_type]}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                                {log.from_city}{log.from_country ? `, ${log.from_country}` : ""}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#9CA3AF" }}>
+                                {new Date(log.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 11, color: "#9CA3AF", textTransform: "capitalize" }}>
+                              {log.tribute_type}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

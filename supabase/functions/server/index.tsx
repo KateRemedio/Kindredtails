@@ -219,6 +219,88 @@ app.get(`${BASE}/pets/:id`, async (c) => {
   }
 });
 
+// Update pet fields (owner only) → PATCH /pets/:id
+app.patch(`${BASE}/pets/:id`, async (c) => {
+  try {
+    const id = c.req.param("id");
+    const ownerTok = c.req.header("X-Owner-Token");
+
+    const { data: pet, error: petErr } = await supabase
+      .from("pets")
+      .select("owner_token")
+      .eq("id", id)
+      .single();
+
+    if (petErr || !pet) return c.json({ error: "Pet not found" }, 404);
+    if (ownerTok !== pet.owner_token) return c.json({ error: "Unauthorized" }, 401);
+
+    const body = await c.req.json();
+    const updates: Record<string, string> = {};
+    if (body.pet_name !== undefined) updates.pet_name = body.pet_name;
+    if (body.pet_type !== undefined) updates.pet_type = body.pet_type;
+    if (body.memorial_text !== undefined) updates.memorial_text = body.memorial_text;
+
+    if (Object.keys(updates).length === 0)
+      return c.json({ error: "No valid fields to update" }, 400);
+
+    const { data, error } = await supabase
+      .from("pets")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.log("Patch pet error:", error.message);
+      return c.json({ error: "Update failed: " + error.message }, 500);
+    }
+
+    return c.json(data);
+  } catch (e) {
+    console.log("Patch pet handler error:", e);
+    return c.json({ error: "Patch error: " + String(e) }, 500);
+  }
+});
+
+// Delete pet and its tribute logs (owner only) → DELETE /pets/:id
+app.delete(`${BASE}/pets/:id`, async (c) => {
+  try {
+    const id = c.req.param("id");
+    const ownerTok = c.req.header("X-Owner-Token");
+
+    const { data: pet, error: petErr } = await supabase
+      .from("pets")
+      .select("owner_token")
+      .eq("id", id)
+      .single();
+
+    if (petErr || !pet) return c.json({ error: "Pet not found" }, 404);
+    if (ownerTok !== pet.owner_token) return c.json({ error: "Unauthorized" }, 401);
+
+    // Delete tribute logs first (non-fatal if fails)
+    const { error: logsErr } = await supabase
+      .from("tribute_logs")
+      .delete()
+      .eq("pet_id", id);
+    if (logsErr) console.log("Delete tribute logs error:", logsErr.message);
+
+    const { error: deleteErr } = await supabase
+      .from("pets")
+      .delete()
+      .eq("id", id);
+
+    if (deleteErr) {
+      console.log("Delete pet error:", deleteErr.message);
+      return c.json({ error: "Delete failed: " + deleteErr.message }, 500);
+    }
+
+    return new Response(null, { status: 204 });
+  } catch (e) {
+    console.log("Delete pet handler error:", e);
+    return c.json({ error: "Delete error: " + String(e) }, 500);
+  }
+});
+
 // Send a tribute → UPDATE pets integer column + INSERT into tribute_logs
 app.post(`${BASE}/pets/:id/tribute`, async (c) => {
   try {
