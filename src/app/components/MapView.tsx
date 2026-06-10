@@ -139,7 +139,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       minZoom: 2,
       maxZoom: 18,
       zoomControl: false,
-      worldCopyJump: true,
+      worldCopyJump: true, // prevents duplicate world copies when panning
     });
 
     L.tileLayer(
@@ -222,7 +222,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       fetchTimerRef.current = setTimeout(fetchBounds, 300);
     };
     const onZoom = () => {
-      if (!initialLoadComplete.current) return;
+      if (!initialLoadComplete.current) return; // guard: no zoom updates until initial load done
       setZoom(map.getZoom());
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
       fetchTimerRef.current = setTimeout(fetchBounds, 300);
@@ -282,7 +282,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       style={{
         position: "absolute",
         inset: 0,
-        background: "#F8FAFC",
+        background: "#E8E0D8", // matches CartoDB Positron tile color to prevent white flash on pan
       }}
     />
   );
