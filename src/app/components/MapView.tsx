@@ -1,7 +1,14 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { createClient } from "@supabase/supabase-js";
 import { getPets, type Pet } from "../utils/api";
+import { projectId, publicAnonKey } from "/utils/supabase/info";
+
+const supabase = createClient(
+  `https://${projectId}.supabase.co`,
+  publicAnonKey
+);
 
 interface Props {
   pets: Pet[];
@@ -160,11 +167,15 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     map.flyTo([panTo.lat, panTo.lng], Math.max(map.getZoom(), 10), { duration: 1.5 });
   }, [panTo]);
 
-  // Initial load: fetch ALL pets with no bounds restriction
+  // Initial load: fetch ALL pets directly from Supabase (bypasses Edge Function)
   const fetchAllPets = useCallback(async () => {
     try {
-      const data = await getPets({ north: 90, south: -90, east: 180, west: -180 });
-      setPets(data);
+      const { data, error } = await supabase
+        .from("pets")
+        .select("id, pet_name, pet_type, lat_fuzzy, lng_fuzzy, city, country, memorial_text, photo_url, personality_tags, flowers, treats, toys, created_at")
+        .limit(500);
+      if (error) throw error;
+      setPets((data as Pet[]) || []);
     } catch (e) {
       console.log("Initial pets fetch error:", e);
     }
