@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { getPets, type Pet } from "../utils/api";
+import { type Pet } from "../utils/api";
 import { supabase } from "../utils/supabaseClient";
 
 interface Props {
@@ -105,10 +105,8 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Accumulates every pet ever seen — keyed by ID so duplicates are deduped
   const seenPetsRef = useRef<Map<string, Pet>>(new Map());
-  const initialLoadComplete = useRef(false);
   const [zoom, setZoom] = useState(3);
   const [ready, setReady] = useState(false);
 
@@ -139,7 +137,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       minZoom: 2,
       maxZoom: 18,
       zoomControl: false,
-      worldCopyJump: true, // prevents duplicate world copies when panning
     });
 
     L.tileLayer(
@@ -149,7 +146,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: "abcd",
         maxZoom: 20,
-        keepBuffer: 4, // keeps more tiles in memory when panning to reduce white flash
       }
     ).addTo(map);
 
@@ -158,6 +154,8 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     setTimeout(() => map.invalidateSize(), 0);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
+
+    map.on("zoomend", () => setZoom(map.getZoom()));
 
     mapRef.current = map;
     setReady(true);
@@ -183,7 +181,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
         .limit(500);
       if (error) throw error;
       mergePets((data as Pet[]) || []);
-      initialLoadComplete.current = true;
     } catch (e) {
       console.log("Initial pets fetch error:", e);
     }
@@ -193,51 +190,6 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     if (!ready) return;
     fetchAllPets();
   }, [ready, fetchAllPets]);
-
-  // Fetch pets for the visible bounds (debounced 300ms) — merges into existing set
-  const fetchBounds = useCallback(async () => {
-    const map = mapRef.current;
-    if (!map) return;
-    const b = map.getBounds();
-    try {
-      const data = await getPets({
-        north: b.getNorth(),
-        south: b.getSouth(),
-        east: b.getEast(),
-        west: b.getWest(),
-      });
-      mergePets(data);
-    } catch (e) {
-      console.log("Map fetch error:", e);
-    }
-  }, [mergePets]);
-
-  // Listen to map move/zoom events (bounds-filtered, not on initial load)
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !ready) return;
-
-    const onMove = () => {
-      if (!initialLoadComplete.current) return;
-      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
-      fetchTimerRef.current = setTimeout(fetchBounds, 300);
-    };
-    const onZoom = () => {
-      if (!initialLoadComplete.current) return; // guard: no zoom updates until initial load done
-      setZoom(map.getZoom());
-      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
-      fetchTimerRef.current = setTimeout(fetchBounds, 300);
-    };
-
-    map.on("moveend", onMove);
-    map.on("zoomend", onZoom);
-
-    return () => {
-      map.off("moveend", onMove);
-      map.off("zoomend", onZoom);
-      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
-    };
-  }, [ready, fetchBounds]);
 
   // Re-render markers when pets or zoom changes
   useEffect(() => {
@@ -283,7 +235,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
       style={{
         position: "absolute",
         inset: 0,
-        background: "#aec8d0", // matches CartoDB Positron ocean/water color to prevent jarring flash on pan
+        background: "#F8FAFC",
       }}
     />
   );
