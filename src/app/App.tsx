@@ -24,6 +24,30 @@ export default function App() {
   const clearSuccessRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newPetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Favicon + page meta (no index.html in this environment)
+  useEffect(() => {
+    document.title = "Kindred Tails — A Living Memorial Garden for Beloved Pets";
+
+    const setMeta = (name: string, content: string, prop = false) => {
+      const attr = prop ? "property" : "name";
+      let el = document.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement | null;
+      if (!el) { el = document.createElement("meta"); el.setAttribute(attr, name); document.head.appendChild(el); }
+      el.content = content;
+    };
+
+    const desc = "Honor your beloved pet with a memorial pin on a living global map. Send tributes, share memories, and join a worldwide community of pet lovers.";
+    setMeta("description", desc);
+    setMeta("og:title", "Kindred Tails — A Living Memorial Garden for Beloved Pets", true);
+    setMeta("og:description", desc, true);
+    setMeta("og:url", "https://kindredtails.vercel.app", true);
+    setMeta("og:type", "website", true);
+
+    let favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    if (!favicon) { favicon = document.createElement("link"); favicon.rel = "icon"; document.head.appendChild(favicon); }
+    favicon.type = "image/svg+xml";
+    favicon.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>";
+  }, []);
+
   // Track mobile breakpoint
   useEffect(() => {
     const handler = () => {
@@ -191,7 +215,13 @@ export default function App() {
 
       {/* First-visit onboarding */}
       {showOnboarding && (
-        <OnboardingCarousel onDismiss={() => setShowOnboarding(false)} />
+        <OnboardingCarousel onDismiss={() => {
+          setShowOnboarding(false);
+          if (pets.length > 0) {
+            const newest = pets.reduce((a, b) => a.created_at > b.created_at ? a : b);
+            setPanTo({ lat: newest.lat_fuzzy, lng: newest.lng_fuzzy });
+          }
+        }} />
       )}
     </>
   );
