@@ -328,7 +328,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 900,
-        width: "min(360px, calc(100vw - 180px))",
+        width: "min(360px, calc(100vw - 32px))",
       }}>
         {/* Input row */}
         <div style={{
