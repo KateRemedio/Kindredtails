@@ -219,7 +219,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
 
   // Fetch autocomplete suggestions (debounced 400ms)
   const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    if (query.trim().length < 2) { setSuggestions([]); return; }
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
@@ -232,7 +232,6 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         lng: parseFloat(item.lon),
       }));
       setSuggestions(results);
-      setShowSuggestions(results.length > 0);
     } catch {
       setSuggestions([]);
     }
