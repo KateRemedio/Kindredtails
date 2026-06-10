@@ -108,6 +108,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Accumulates every pet ever seen — keyed by ID so duplicates are deduped
   const seenPetsRef = useRef<Map<string, Pet>>(new Map());
+  const initialLoadComplete = useRef(false);
   const [zoom, setZoom] = useState(3);
   const [ready, setReady] = useState(false);
 
@@ -180,6 +181,7 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
         .limit(500);
       if (error) throw error;
       mergePets((data as Pet[]) || []);
+      initialLoadComplete.current = true;
     } catch (e) {
       console.log("Initial pets fetch error:", e);
     }
@@ -214,11 +216,13 @@ export function MapView({ pets, setPets, onPetClick, panTo, newPetId }: Props) {
     if (!map || !ready) return;
 
     const onMove = () => {
+      if (!initialLoadComplete.current) return;
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
       fetchTimerRef.current = setTimeout(fetchBounds, 300);
     };
     const onZoom = () => {
       setZoom(map.getZoom());
+      if (!initialLoadComplete.current) return;
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
       fetchTimerRef.current = setTimeout(fetchBounds, 300);
     };
