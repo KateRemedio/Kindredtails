@@ -1,8 +1,61 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { markVisited } from "../utils/localStorage";
+import svgPaths from "../../imports/🔣Icons/svg-zcp33176r3";
 
-const SLIDE_EMOJIS = ["🌍", "🌱", "🌸", "🛡️"];
+// Onboarding icon SVGs using actual Figma Icon/Onboarding/* path data
+function buildOnboardingIconHtml(type: string, size = 48): string {
+  const s = 'fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"';
+  const icons: Record<string, string> = {
+    plant: `
+      <g transform="translate(12.89,11.09)">
+        <path d="${svgPaths.p16a03600}" fill="#B1CC33"/><path d="${svgPaths.p1153900}" fill="#5C9E31"/>
+        <path d="${svgPaths.paf50900}" fill="#B1CC33"/><path d="${svgPaths.p52d3280}" fill="#5C9E31"/>
+      </g>
+      <g transform="translate(11.89,10.09)">
+        <path d="${svgPaths.p3757ee80}" ${s}/><path d="${svgPaths.p3e7d5e80}" ${s}/>
+        <path d="${svgPaths.p269a1180}" ${s}/><path d="${svgPaths.p57c6f80}" ${s}/>
+        <path d="${svgPaths.p269e5a00}" ${s}/>
+      </g>`,
+    globe: `
+      <g transform="translate(5.33,5.33)">
+        <path d="${svgPaths.p211f6400}" fill="#92D3F5"/><path d="${svgPaths.p3c958a00}" fill="#C5D76F"/>
+      </g>
+      <g transform="translate(4.33,4.33)">
+        <path d="${svgPaths.p1498e100}" ${s}/><path d="${svgPaths.p8a94180}" ${s}/>
+      </g>`,
+    dove: `
+      <g transform="translate(9.25,5.30)">
+        <path d="${svgPaths.p1cf0e980}" fill="#D0CFCE"/><path d="${svgPaths.p1255cd00}" fill="white"/>
+      </g>
+      <g transform="translate(8.67,4.56)">
+        <path d="${svgPaths.p1bdd3f80}" ${s}/><path d="${svgPaths.p2a2ed48}" ${s}/>
+      </g>`,
+    home: `
+      <g transform="translate(7.64,6.12)">
+        <path d="${svgPaths.pa248d00}" fill="white"/><path d="${svgPaths.p343b2600}" fill="#92D3F5"/>
+      </g>
+      <g transform="translate(16.13,20.77)">
+        <path d="${svgPaths.p4e1c280}" fill="#FCF392"/><path d="${svgPaths.pe659300}" fill="#FCF392"/><path d="${svgPaths.p1e9d4780}" fill="#FCF392"/>
+      </g>
+      <g transform="translate(4.15,5.16)">
+        <path d="M35.8924 35.8109V8.25437" ${s}/>
+        <path d="${svgPaths.p2de2ef00}" ${s}/>
+        <path d="M3.49124 35.8109V8.25437" ${s}/>
+        <path d="${svgPaths.p2e8d2b00}" ${s}/><path d="${svgPaths.pa599300}" ${s}/>
+        <path d="${svgPaths.p32cce600}" ${s}/><path d="${svgPaths.p230fa2c0}" ${s}/>
+        <path d="${svgPaths.pbb4700}" ${s}/><path d="${svgPaths.p147d5f80}" ${s}/>
+        <path d="${svgPaths.pd751ac0}" ${s}/><path d="${svgPaths.p15b08b00}" ${s}/>
+        <path d="${svgPaths.p31a83280}" ${s}/><path d="${svgPaths.pd89a340}" ${s}/>
+        <path d="${svgPaths.p201f6c00}" ${s}/><path d="${svgPaths.p6070180}" ${s}/>
+        <path d="${svgPaths.p28462780}" ${s}/>
+      </g>`,
+  };
+  const body = icons[type] || "";
+  return `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">${body}</svg>`;
+}
+
+const SLIDE_ICON_TYPES = ["plant", "globe", "dove", "home"] as const;
 
 interface Props {
   onDismiss: () => void;
@@ -14,10 +67,10 @@ export function OnboardingCarousel({ onDismiss }: Props) {
   const touchStartX = useRef<number | null>(null);
 
   const slides = [
-    { emoji: SLIDE_EMOJIS[0], title: t("onboarding_title_1"), body: t("onboarding_body_1") },
-    { emoji: SLIDE_EMOJIS[1], title: t("onboarding_title_2"), body: t("onboarding_body_2") },
-    { emoji: SLIDE_EMOJIS[2], title: t("onboarding_title_3"), body: t("onboarding_body_3") },
-    { emoji: SLIDE_EMOJIS[3], title: t("onboarding_title_4"), body: t("onboarding_body_4") },
+    { icon: SLIDE_ICON_TYPES[0], title: t("onboarding_title_1"), body: t("onboarding_body_1") },
+    { icon: SLIDE_ICON_TYPES[1], title: t("onboarding_title_2"), body: t("onboarding_body_2") },
+    { icon: SLIDE_ICON_TYPES[2], title: t("onboarding_title_3"), body: t("onboarding_body_3") },
+    { icon: SLIDE_ICON_TYPES[3], title: t("onboarding_title_4"), body: t("onboarding_body_4") },
   ];
 
   const dismiss = () => {
@@ -76,8 +129,11 @@ export function OnboardingCarousel({ onDismiss }: Props) {
           {t("skip")}
         </button>
 
-        {/* Emoji */}
-        <div style={{ fontSize: 56, marginBottom: 20, lineHeight: 1 }}>{slide.emoji}</div>
+        {/* Slide icon */}
+        <div
+          style={{ width: 80, height: 80, borderRadius: 16, background: "#F5F0E8", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}
+          dangerouslySetInnerHTML={{ __html: buildOnboardingIconHtml(slide.icon, 54) }}
+        />
 
         {/* Title */}
         <div style={{
@@ -105,8 +161,8 @@ export function OnboardingCarousel({ onDismiss }: Props) {
                 height: 6, borderRadius: 3,
                 width: i === index ? 20 : 6,
                 background: i === index
-                  ? "linear-gradient(135deg,#06B6D4,#3B82F6)"
-                  : "#E5E7EB",
+                  ? "#2A6B4A"
+                  : "#E8DDD0",
                 transition: "all 0.25s",
                 cursor: "pointer",
               }}
@@ -122,7 +178,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
               style={{
                 width: "100%", padding: "13px",
                 borderRadius: 12, border: "none",
-                background: "linear-gradient(135deg,#06B6D4,#3B82F6)",
+                background: "#2A6B4A",
                 color: "white", fontSize: 15, fontWeight: 700,
                 cursor: "pointer",
               }}
@@ -147,7 +203,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
             style={{
               width: "100%", padding: "13px",
               borderRadius: 12, border: "none",
-              background: "linear-gradient(135deg,#06B6D4,#3B82F6)",
+              background: "#2A6B4A",
               color: "white", fontSize: 15, fontWeight: 700,
               cursor: "pointer",
             }}

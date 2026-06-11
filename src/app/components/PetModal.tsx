@@ -2,13 +2,95 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { sendTribute, getTributeLogs, getPet, patchPet, deletePet, type Pet, type TributeLog } from "../utils/api";
 import { getSeedCount, getSeedResetAt, useSeed, getOwnerToken } from "../utils/localStorage";
+import svgPaths from "../../imports/🔣Icons/svg-zcp33176r3";
 
 const PET_TYPES = ["dog", "cat", "bird", "bunny", "reptile", "fish", "other"];
-const PET_EMOJI: Record<string, string> = {
-  dog: "🐕", cat: "🐈", bird: "🐦", bunny: "🐰",
-  reptile: "🦎", fish: "🐠", other: "🐾",
+
+const PET_TYPE_COLORS: Record<string, string> = {
+  dog: "#D4885A", cat: "#9ABCCC", bird: "#6AAA5A",
+  bunny: "#E898B0", reptile: "#7AB87A", fish: "#E8A030", other: "#B898CC",
 };
+function getPetColor(type: string): string { return PET_TYPE_COLORS[type] || "#2A6B4A"; }
+
+// Builds the same composite SVG used in map pins — white fills on colored bg
+function buildPetIconHtml(type: string, size = 26): string {
+  const fw = 'fill="rgba(255,255,255,0.92)"';
+  const fl = 'fill="rgba(255,255,255,0.70)"';
+  const s  = 'fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const sm = 'fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"';
+  const icons: Record<string, string> = {
+    dog: `<g transform="translate(4.40,7.27)"><path d="${svgPaths.p32012100}" ${fw}/><path d="${svgPaths.p16127d00}" ${fl}/><path d="${svgPaths.p22fe2e80}" ${fl}/></g><g transform="translate(3.31,7.00)"><path d="${svgPaths.pac65c00}" ${s}/><path d="${svgPaths.p364500}" ${s}/><path d="${svgPaths.p338d8a00}" ${s}/><path d="${svgPaths.p35101500}" ${s}/><path d="${svgPaths.p2d547c00}" ${s}/><path d="${svgPaths.pa19eb80}" ${s}/></g>`,
+    cat: `<g transform="translate(3.52,10.72)"><path d="${svgPaths.p30728340}" ${fw}/><path d="${svgPaths.pf444a00}" ${fw}/><path d="${svgPaths.p22c7c80}" ${fw}/></g><g transform="translate(2.27,9.79)"><path d="${svgPaths.pf863040}" ${s}/><path d="${svgPaths.p2f1cad00}" ${s}/><path d="${svgPaths.p1fb12d00}" ${s}/><path d="${svgPaths.p37c2adc0}" ${s}/><path d="${svgPaths.p38aa6380}" ${s}/><path d="${svgPaths.p2427ce00}" ${s}/></g>`,
+    bird: `<g transform="translate(15.33,4.97)"><path d="${svgPaths.peb8000}" ${fw}/><path d="${svgPaths.p1a341200}" ${fl}/><path d="${svgPaths.p20526d00}" ${fw}/><path d="${svgPaths.p18d9bf00}" ${fl}/><path d="${svgPaths.p16e4c680}" ${fl}/><path d="${svgPaths.p1f8ce300}" ${fw}/></g><g transform="translate(7.67,3.97)"><path d="${svgPaths.pf24b700}" fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-miterlimit="10"/><path d="${svgPaths.p774b140}" ${s}/><path d="${svgPaths.p1456dc00}" ${s}/><path d="${svgPaths.p2cb32740}" ${s}/><path d="M15.4638 26.0257V30.6923" ${s}/><path d="M30.3915 30.6923H33" ${s}/><path d="M1 30.8071H20.993" ${s}/><path d="${svgPaths.p1863a600}" ${s}/><path d="${svgPaths.p4f86400}" ${s}/><path d="M19.4638 28.0257V30.6923" ${s}/></g>`,
+    bunny: `<g transform="translate(6.28,7.84)"><path d="${svgPaths.p32592400}" ${fw}/><path d="${svgPaths.p380f6f40}" ${fw}/><path d="${svgPaths.p35081f00}" fill="rgba(255,200,220,0.85)"/><path d="${svgPaths.p2e679200}" fill="rgba(255,200,220,0.85)"/><path d="${svgPaths.pa5f0f00}" ${fw}/></g><g transform="translate(5.07,6.53)"><path d="${svgPaths.p22d59300}" ${s}/><path d="${svgPaths.p1d9adf00}" ${s}/><path d="${svgPaths.p1aa2fdc0}" ${s}/><path d="${svgPaths.p21044000}" ${s}/></g>`,
+    fish: `<g transform="translate(11.27,11.87)"><path d="${svgPaths.p289aaf80}" fill="rgba(255,255,210,0.9)"/><path d="${svgPaths.pf8e6b00}" ${fw}/><path d="${svgPaths.p229dcd00}" ${fw}/><path d="${svgPaths.p33f88d80}" fill="rgba(255,255,210,0.9)"/><path d="${svgPaths.p2dfd200}" fill="rgba(255,220,160,0.9)"/><path d="${svgPaths.p34cfbc80}" ${fw}/></g><g transform="translate(7.67,10.46)"><path d="${svgPaths.p13031780}" ${s}/><path d="${svgPaths.p1ad19a80}" ${s}/><path d="${svgPaths.p68d3480}" ${s}/><path d="${svgPaths.p1dace880}" ${s}/><path d="${svgPaths.p26bfdd00}" ${s}/><path d="${svgPaths.p2bdab900}" ${s}/></g>`,
+    reptile: `<g transform="translate(2.92,10.13)"><path d="${svgPaths.pa506c00}" fill="rgba(210,230,170,0.9)"/><path d="${svgPaths.pa188980}" fill="rgba(210,230,170,0.9)"/><path d="${svgPaths.p3c72e400}" fill="rgba(170,210,170,0.9)"/><path d="${svgPaths.p1efa0d00}" fill="rgba(210,230,170,0.9)"/><path d="${svgPaths.p1395bf80}" fill="rgba(210,230,170,0.9)"/><path d="${svgPaths.p3ffb5e00}" fill="rgba(170,210,170,0.9)"/></g><g transform="translate(2.92,10.13)"><path d="${svgPaths.pd6ba80}" ${sm}/><path d="${svgPaths.p1c1f0d80}" ${sm}/><path d="${svgPaths.p3c930600}" ${sm}/><path d="${svgPaths.p1f630a40}" ${sm}/><path d="${svgPaths.p361eed80}" ${sm}/><path d="${svgPaths.pe18c580}" ${sm}/><path d="${svgPaths.p3f1a540}" ${sm}/><path d="${svgPaths.p164758c0}" ${sm}/><path d="${svgPaths.p3b426c2a}" ${sm}/><path d="${svgPaths.p1db67480}" ${sm}/><path d="${svgPaths.p357fd480}" ${sm}/><path d="${svgPaths.p13b80e80}" ${sm}/></g>`,
+    other: `<g transform="translate(7.86,5.09)"><path d="${svgPaths.p1ab01e00}" ${fl}/><path d="${svgPaths.p3c9c7a00}" ${fl}/><path d="${svgPaths.p17c6aa00}" ${fl}/><path d="${svgPaths.p39822c00}" ${fl}/><path d="${svgPaths.p1a5a9200}" ${fl}/><path d="${svgPaths.p30386780}" ${fl}/><path d="${svgPaths.p18f71500}" ${fl}/><path d="${svgPaths.p22483970}" ${fl}/><path d="${svgPaths.p2a78bc30}" ${fl}/><path d="${svgPaths.p252f5600}" ${fl}/></g><g transform="translate(6.38,3.50)"><path d="${svgPaths.p636fff0}" ${s}/><path d="${svgPaths.p3583cb00}" ${s}/><path d="${svgPaths.pd2c5c10}" ${s}/><path d="${svgPaths.p15c98800}" ${s}/><path d="${svgPaths.p1c6ade00}" ${s}/><path d="${svgPaths.p196a9b00}" ${s}/><path d="${svgPaths.p25b76000}" ${s}/><path d="${svgPaths.p209700f0}" ${s}/><path d="${svgPaths.p87b9000}" ${s}/><path d="${svgPaths.p284cf500}" ${s}/></g>`,
+  };
+  const body = icons[type] || icons.other;
+  return `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">${body}</svg>`;
+}
 const TRIBUTE_EMOJI: Record<string, string> = { flower: "🌸", treat: "🍖", toy: "🧸" };
+
+// SVG tribute icons (flower / toy / treat) with actual Figma colors
+function buildTributeIconHtml(type: string, size = 40): string {
+  const s  = 'fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"';
+  const sm = 'fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"';
+  const icons: Record<string, string> = {
+    flower: `
+      <g transform="translate(5.67,5.67)">
+        <path d="${svgPaths.p98f1000}" fill="#DA6D68" stroke="#DA6D68" stroke-miterlimit="10" stroke-width="2"/>
+        <path d="${svgPaths.p2e8d9700}" fill="#EC8F83"/>
+        <path d="${svgPaths.p301de600}" fill="#FDC677" stroke="#FDC677" stroke-miterlimit="10" stroke-width="2"/>
+        <path d="${svgPaths.p2e36cb40}" fill="#F8EA54" stroke="#F8EA54" stroke-miterlimit="10" stroke-width="2"/>
+      </g>
+      <g transform="translate(5.67,5.67)">
+        <path d="${svgPaths.p2e8d9700}" ${s}/><path d="${svgPaths.p16c4be00}" ${s}/>
+        <path d="${svgPaths.pc5c7200}" ${s}/><path d="${svgPaths.p1df06fe0}" ${s}/>
+        <path d="${svgPaths.p16c14800}" ${s}/>
+        <path d="${svgPaths.p301de600}" fill="none" stroke="black" stroke-linejoin="round" stroke-width="2"/>
+        <path d="${svgPaths.p2e36cb40}" fill="none" stroke="black" stroke-linejoin="round" stroke-width="2"/>
+      </g>`,
+    toy: `
+      <g transform="translate(6.67,3.40)">
+        <path d="${svgPaths.p363e300}" fill="#D7D68D"/><path d="${svgPaths.p3482d080}" fill="#D7D68D"/>
+        <path d="${svgPaths.p2d8ef500}" fill="#82BDB3"/><path d="${svgPaths.p300e8700}" fill="#D7D68D"/>
+        <path d="${svgPaths.p12f98300}" fill="#3F3F3F"/><path d="${svgPaths.p278ebb80}" fill="#D7D68D"/>
+        <path d="${svgPaths.p228b7000}" fill="#D7D68D"/>
+      </g>
+      <g transform="translate(6.33,2.40)">
+        <path d="${svgPaths.p29da4c80}" fill="black"/><path d="${svgPaths.p1a8b0b80}" fill="black"/>
+        <path d="${svgPaths.p369f5d00}" ${s}/><path d="${svgPaths.p1dccf800}" ${sm}/>
+        <path d="${svgPaths.p135c300}" ${sm}/><path d="${svgPaths.p1048fa00}" ${sm}/>
+        <path d="${svgPaths.p340bd400}" ${sm}/><path d="${svgPaths.p2cb2ac00}" ${sm}/>
+        <path d="${svgPaths.p33511b00}" ${sm}/><path d="${svgPaths.p1471f500}" ${sm}/>
+        <path d="${svgPaths.p26067000}" ${sm}/>
+        <path d="M17.6667 19.1563V21.1563" ${s}/><path d="${svgPaths.p1f531b80}" ${s}/>
+        <path d="${svgPaths.p1a329580}" ${s}/><path d="${svgPaths.p3c9c3ee0}" ${s}/>
+        <path d="${svgPaths.p3a0f3800}" ${s}/><path d="${svgPaths.p296756e0}" ${s}/>
+        <path d="${svgPaths.p74cfe80}" ${s}/>
+      </g>`,
+    treat: `
+      <g transform="translate(5.33,5.33)">
+        <path d="${svgPaths.p3b677100}" fill="#B68647"/><path d="${svgPaths.p2f507580}" fill="#89654D"/>
+        <path d="${svgPaths.p13b0dc00}" fill="#89654D"/><path d="${svgPaths.p75e370}" fill="#89654D"/>
+        <path d="${svgPaths.p283a2300}" fill="#89654D"/><path d="${svgPaths.p97304f0}" fill="#89654D"/>
+        <path d="${svgPaths.p337c800}" fill="#89654D"/><path d="${svgPaths.p392d9800}" fill="#89654D"/>
+      </g>
+      <g transform="translate(4.36,4.28)">
+        <path d="${svgPaths.p32fc1230}" fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+        <path d="${svgPaths.p123c2b00}" fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+        <path d="${svgPaths.p106411f0}" fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+        <path d="${svgPaths.p37a91c00}" fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+        <path d="${svgPaths.pe90ec80}"  fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+        <path d="${svgPaths.p1e9a280}"  fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+        <path d="${svgPaths.p45de800}"  fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+        <path d="${svgPaths.p7782e00}"  fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.9394"/>
+      </g>`,
+  };
+  const body = icons[type] || "";
+  return `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">${body}</svg>`;
+}
 const META_SEP = "\n\n---kindred-meta---\n";
 
 interface PetMeta {
@@ -439,13 +521,16 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
 
             {/* No photo placeholder */}
             {photos.length === 0 && (
-              <div style={{
-                width: 110, height: 110, borderRadius: 18, margin: "0 auto 12px",
-                background: "#F0F7F4",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 52,
-              }}>
-                {PET_EMOJI[current.pet_type] || "🐾"}
-              </div>
+              <div
+                style={{
+                  width: 80, height: 80, borderRadius: 16, margin: "0 auto 12px",
+                  background: getPetColor(current.pet_type),
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  overflow: "hidden",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                }}
+                dangerouslySetInnerHTML={{ __html: buildPetIconHtml(current.pet_type, 52) }}
+              />
             )}
 
             {/* ── Name + location ─────────────────────────────────────── */}
@@ -454,10 +539,12 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                 fontFamily: "'Courier Prime','Source Code Pro',monospace",
                 fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 4,
               }}>{current.pet_name}</h2>
-              <p style={{ fontSize: 13, color: "#9CA3AF" }}>
-                {PET_EMOJI[current.pet_type] || "🐾"} {current.pet_type}
-                {meta.breed && ` · ${meta.breed}`}
-                {" · "}{current.city}, {current.country}
+              <p style={{ fontSize: 13, color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, flexWrap: "wrap" }}>
+                <span
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: 6, background: getPetColor(current.pet_type), overflow: "hidden", flexShrink: 0, verticalAlign: "middle" }}
+                  dangerouslySetInnerHTML={{ __html: buildPetIconHtml(current.pet_type, 18) }}
+                />
+                <span>{current.pet_type}{meta.breed && ` · ${meta.breed}`}{" · "}{current.city}, {current.country}</span>
               </p>
               {(meta.age_years || meta.date_of_passing) && (
                 <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 3 }}>
@@ -611,7 +698,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                           minHeight: 44,
                         }}
                       >
-                        <span style={{ fontSize: 26 }}>{TRIBUTE_EMOJI[type]}</span>
+                        <span dangerouslySetInnerHTML={{ __html: buildTributeIconHtml(type, 40) }} style={{ display: "flex", alignItems: "center", justifyContent: "center" }} />
                         <span style={{ fontSize: 11, fontWeight: 600, color: sending ? "white" : "#374151" }}>
                           {t(type)}
                         </span>
@@ -742,7 +829,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                           textAlign: "center", background: "#F9FAFB",
                           borderRadius: 14, padding: "12px 8px", border: "1px solid #F3F4F6",
                         }}>
-                          <div style={{ fontSize: 28 }}>{TRIBUTE_EMOJI[type]}</div>
+                          <div style={{ display: "flex", justifyContent: "center" }} dangerouslySetInnerHTML={{ __html: buildTributeIconHtml(type, 32) }} />
                           <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
                             {t(type)}s
                           </div>
@@ -768,7 +855,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                             display: "flex", alignItems: "center", gap: 12,
                             padding: "10px 12px", borderRadius: 12, background: "#F9FAFB",
                           }}>
-                            <span style={{ fontSize: 22, flexShrink: 0 }}>{TRIBUTE_EMOJI[log.tribute_type]}</span>
+                            <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }} dangerouslySetInnerHTML={{ __html: buildTributeIconHtml(log.tribute_type, 26) }} />
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
                                 {log.from_city}{log.from_country ? `, ${log.from_country}` : ""}
