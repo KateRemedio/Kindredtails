@@ -46,7 +46,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
           userSelect: "none",
         }}
       >
-        {toast.message}
+        <span dangerouslySetInnerHTML={{ __html: toast.message }} />
       </div>
     </>
   );

@@ -186,7 +186,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
   const [translated, setTranslated] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
-  const [dropEmoji, setDropEmoji] = useState<{ emoji: string; key: number } | null>(null);
+  const [dropEmoji, setDropEmoji] = useState<{ html: string; key: number } | null>(null);
 
   const [isOwner, setIsOwner] = useState(
     () => !!localStorage.getItem('kindred_owner_token_' + pet.id)
@@ -264,8 +264,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
     const loc = await getTributerLocation();
     setLocating(false);
 
-    const emoji = TRIBUTE_EMOJI[type];
-    setDropEmoji({ emoji, key: Date.now() });
+    setDropEmoji({ html: buildTributeIconHtml(type, 52), key: Date.now() });
     setTimeout(() => setDropEmoji(null), 2600);
 
     try {
@@ -274,7 +273,8 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
       setCurrent(updated);
       onTributeSuccess(updated);
       const fromLabel = loc.city && loc.city !== "Unknown location" ? ` from ${loc.city}` : "";
-      onToast?.(`${emoji} You sent a ${type} to ${current.pet_name}${fromLabel}`);
+      const iconHtml = buildTributeIconHtml(type, 20);
+      onToast?.(`<span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${iconHtml}<span>You sent a ${type} to ${current.pet_name}${fromLabel}</span></span>`);
     } catch (e) {
       console.log("Tribute error:", e);
     }
@@ -407,14 +407,12 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
             position: "fixed",
             top: 0,
             left: "50%",
-            fontSize: 42,
             zIndex: 9999,
             pointerEvents: "none",
             animation: "kt-parachute 2.5s cubic-bezier(0.25,0.46,0.45,0.94) forwards",
           }}
-        >
-          {dropEmoji.emoji}
-        </div>
+          dangerouslySetInnerHTML={{ __html: dropEmoji.html }}
+        />
       )}
 
       <style>{`
