@@ -473,7 +473,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
               flex: 1,
               border: "none",
               outline: "none",
-              fontSize: 16,
+              fontSize: 13,
               color: "#111827",
               background: "transparent",
               fontFamily: "'Inter','Roboto',sans-serif",
