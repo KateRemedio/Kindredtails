@@ -30,14 +30,13 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
       <div
         onClick={() => onRemove(toast.id)}
         style={{
-          padding: "11px 16px",
-          borderRadius: 12,
-          background: "rgba(17,24,39,0.92)",
-          backdropFilter: "blur(8px)",
+          padding: "11px 20px",
+          borderRadius: 50,
+          background: "#2D2A26",
           color: "white",
           fontSize: 13,
           fontWeight: 500,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
           cursor: "pointer",
           maxWidth: 320,
           lineHeight: 1.4,

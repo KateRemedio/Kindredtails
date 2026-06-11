@@ -30,17 +30,12 @@ export function SuccessOverlay({ pet, onDismiss }: Props) {
           0%, 100% { transform: translateY(0); }
           50%       { transform: translateY(-10px); }
         }
-        @keyframes so-ping {
-          0%   { transform: scale(1); opacity: 0.7; }
-          100% { transform: scale(2.4); opacity: 0; }
-        }
       `}</style>
       <div
         onClick={onDismiss}
         style={{
           position: "fixed", inset: 0, zIndex: 3000,
-          background: "linear-gradient(160deg, rgba(217,70,239,0.93) 0%, rgba(249,115,22,0.93) 100%)",
-          backdropFilter: "blur(14px)",
+          background: "#F5F0E8",
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
           animation: "so-in 0.45s ease forwards",
@@ -50,30 +45,29 @@ export function SuccessOverlay({ pet, onDismiss }: Props) {
         }}
       >
         <div style={{
-          textAlign: "center", color: "white", padding: "32px 24px",
+          textAlign: "center", padding: "32px 24px",
           animation: "so-rise 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.1s both",
           maxWidth: 380,
         }}>
-          {/* Floating blossom with ping ring */}
-          <div style={{ position: "relative", display: "inline-block", marginBottom: 20 }}>
-            <div style={{
-              position: "absolute", inset: 0, borderRadius: "50%",
-              background: "rgba(255,255,255,0.25)",
-              animation: "so-ping 1.8s ease-out infinite",
-            }} />
-            <div style={{ fontSize: 72, animation: "so-float 2.2s ease-in-out infinite", lineHeight: 1 }}>
-              🌸
-            </div>
+          {/* Floating blossom */}
+          <div style={{ fontSize: 72, marginBottom: 16, animation: "so-float 2.2s ease-in-out infinite", lineHeight: 1 }}>
+            🌸
           </div>
 
           {/* Pet name */}
           <div style={{
             fontFamily: "'Courier Prime','Source Code Pro',monospace",
             fontSize: 30, fontWeight: 700, marginBottom: 8, lineHeight: 1.2,
+            color: "#2D2A26",
           }}>
             {pet.pet_name}
           </div>
-          <div style={{ fontSize: 18, opacity: 0.92, marginBottom: 24 }}>
+
+          {/* Tagline */}
+          <div style={{
+            fontFamily: "'Inter','Roboto',sans-serif",
+            fontSize: 18, color: "#2D2A26", marginBottom: 24, opacity: 0.92,
+          }}>
             is now part of the garden 🌸
           </div>
 
@@ -81,15 +75,19 @@ export function SuccessOverlay({ pet, onDismiss }: Props) {
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             fontSize: 13, fontWeight: 600,
-            background: "rgba(255,255,255,0.18)",
-            border: "1px solid rgba(255,255,255,0.3)",
+            background: "#2A6B4A",
+            border: "0.5px solid rgba(255,255,255,0.3)",
+            color: "#FAF8F5",
             borderRadius: 20, padding: "8px 18px",
             marginBottom: 20,
           }}>
             ❤️ You own this memorial
           </div>
 
-          <div style={{ fontSize: 12, opacity: 0.55 }}>
+          <div style={{
+            fontFamily: "'Inter','Roboto',sans-serif",
+            fontSize: 12, color: "#9C8A7A",
+          }}>
             Tap anywhere to see it on the map
           </div>
         </div>

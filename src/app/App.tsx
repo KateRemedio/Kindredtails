@@ -134,7 +134,7 @@ export default function App() {
         width: "100vw",
         height: "100vh",
         overflow: "hidden",
-        background: "#FFFFFF",
+        background: "#FAF8F5",
         fontFamily: "'Inter','Roboto',sans-serif",
       }}>
         {/* Sidebar */}
@@ -169,12 +169,12 @@ export default function App() {
                 padding: "12px 20px",
                 borderRadius: 50,
                 border: "none",
-                background: "linear-gradient(135deg,#06B6D4,#3B82F6)",
+                background: "#2A6B4A",
                 color: "white",
                 fontSize: 14,
                 fontWeight: 700,
                 cursor: "pointer",
-                boxShadow: "0 4px 20px rgba(6,182,212,0.4)",
+                boxShadow: "0 4px 20px rgba(42,107,74,0.3)",
                 display: "flex",
                 alignItems: "center",
                 gap: 6,

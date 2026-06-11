@@ -284,7 +284,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
 
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 12px", fontSize: 13, borderRadius: 10,
-    border: "1px solid #E5E7EB", outline: "none", background: "white",
+    border: "1px solid #E8DDD0", outline: "none", background: "white",
     boxSizing: "border-box",
   };
 
@@ -401,12 +401,10 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     >
                       <div style={{
                         padding: 4,
-                        background: isActive
-                          ? "linear-gradient(135deg,#06B6D4,#3B82F6)"
-                          : "#E5E7EB",
+                        background: isActive ? "#2A6B4A" : "#E5E7EB",
                         borderRadius: 16,
                         boxShadow: isActive
-                          ? "0 8px 24px rgba(6,182,212,0.35)"
+                          ? "0 8px 24px rgba(42,107,74,0.3)"
                           : "0 2px 8px rgba(0,0,0,0.10)",
                       }}>
                         <img
@@ -430,9 +428,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     onClick={() => setPhotoIdx(i)}
                     style={{
                       width: i === photoIdx ? 20 : 6, height: 6, borderRadius: 3,
-                      background: i === photoIdx
-                        ? "linear-gradient(135deg,#06B6D4,#3B82F6)"
-                        : "#E5E7EB",
+                      background: i === photoIdx ? "#2A6B4A" : "#E8DDD0",
                       border: "none", cursor: "pointer", padding: 0,
                       transition: "all 0.3s", minWidth: 0, minHeight: 0,
                     }}
@@ -445,7 +441,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
             {photos.length === 0 && (
               <div style={{
                 width: 110, height: 110, borderRadius: 18, margin: "0 auto 12px",
-                background: "linear-gradient(135deg,#E0F7FA,#DBEAFE)",
+                background: "#F0F7F4",
                 display: "flex", alignItems: "center", justifyContent: "center", fontSize: 52,
               }}>
                 {PET_EMOJI[current.pet_type] || "🐾"}
@@ -476,7 +472,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
             {isOwner && (
               <div style={{
                 display: "flex", borderRadius: 12, overflow: "hidden",
-                border: "1px solid #E5E7EB", marginBottom: 16, background: "#F9FAFB",
+                border: "1px solid #E8DDD0", marginBottom: 16, background: "#F5F0E8",
               }}>
                 {(["memorial", "log"] as const).map((tabKey) => (
                   <button
@@ -485,8 +481,8 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     style={{
                       flex: 1, padding: "10px 8px", border: "none", cursor: "pointer",
                       fontSize: 12, fontWeight: 600, transition: "all 0.2s",
-                      background: tab === tabKey ? "linear-gradient(135deg,#06B6D4,#3B82F6)" : "transparent",
-                      color: tab === tabKey ? "white" : "#6B7280",
+                      background: tab === tabKey ? "#2A6B4A" : "#F5F0E8",
+                      color: tab === tabKey ? "white" : "#5A4A3A",
                       borderRadius: tab === tabKey ? 11 : 0,
                       minHeight: 44,
                     }}
@@ -546,7 +542,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       disabled={translating}
                       style={{
                         background: "none", border: "none", cursor: "pointer",
-                        fontSize: 11, color: "#06B6D4", fontWeight: 600,
+                        fontSize: 11, color: "#2A6B4A", fontWeight: 600,
                         minHeight: 44, padding: "0 4px",
                       }}
                     >
@@ -561,7 +557,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     {current.personality_tags.map((tag) => (
                       <span key={tag} style={{
                         fontSize: 12, padding: "4px 10px", borderRadius: 20,
-                        background: "linear-gradient(135deg,#06B6D4,#3B82F6)", color: "white",
+                        background: "#2A6B4A", color: "white",
                       }}>{tag}</span>
                     ))}
                   </div>
@@ -575,7 +571,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} style={{
                           width: 8, height: 8, borderRadius: "50%",
-                          background: i < seeds ? "linear-gradient(135deg,#06B6D4,#3B82F6)" : "#E5E7EB",
+                          background: i < seeds ? "#2A6B4A" : "#E8DDD0",
                           transition: "background 0.3s",
                         }} />
                       ))}
@@ -606,8 +602,8 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         style={{
                           display: "flex", flexDirection: "column", alignItems: "center",
                           gap: 4, padding: "12px 8px", borderRadius: 14,
-                          border: "1px solid #E5E7EB",
-                          background: sending ? "linear-gradient(135deg,#D946EF,#F97316)" : canTribute ? "white" : "#FAFAFA",
+                          border: "1px solid #E8DDD0",
+                          background: sending ? "#2A6B4A" : canTribute ? "white" : "#FAFAFA",
                           opacity: canTribute ? 1 : 0.5,
                           cursor: canTribute ? "pointer" : "not-allowed",
                           transform: sending ? "scale(0.95)" : "scale(1)",
@@ -619,7 +615,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         <span style={{ fontSize: 11, fontWeight: 600, color: sending ? "white" : "#374151" }}>
                           {t(type)}
                         </span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: sending ? "rgba(255,255,255,0.85)" : "#06B6D4" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: sending ? "rgba(255,255,255,0.85)" : "#2A6B4A" }}>
                           {count}
                         </span>
                       </button>
@@ -667,7 +663,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       <button
                         type="button"
                         onClick={() => setOwnerView("log")}
-                        style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                        style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E8DDD0", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                       >
                         {t("cancel")}
                       </button>
@@ -675,7 +671,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         type="button"
                         onClick={handleEditSave}
                         disabled={editSaving}
-                        style={{ flex: 2, padding: "11px", borderRadius: 12, border: "none", background: editSaving ? "#F3F4F6" : "linear-gradient(135deg,#06B6D4,#3B82F6)", color: editSaving ? "#9CA3AF" : "white", fontSize: 13, fontWeight: 700, cursor: editSaving ? "not-allowed" : "pointer" }}
+                        style={{ flex: 2, padding: "11px", borderRadius: 12, border: "none", background: editSaving ? "#F3F4F6" : "#2A6B4A", color: editSaving ? "#9CA3AF" : "white", fontSize: 13, fontWeight: 700, cursor: editSaving ? "not-allowed" : "pointer" }}
                       >
                         {editSaving ? t("saving") : t("saveChanges")}
                       </button>
@@ -702,7 +698,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       <button
                         type="button"
                         onClick={() => setOwnerView("log")}
-                        style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                        style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E8DDD0", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                       >
                         {t("keepMemorial")}
                       </button>
@@ -725,7 +721,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     <button
                       type="button"
                       onClick={openEdit}
-                      style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 8, textAlign: "center" }}
+                      style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px solid #E8DDD0", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 8, textAlign: "center" }}
                     >
                       {t("editMemorial")}
                     </button>

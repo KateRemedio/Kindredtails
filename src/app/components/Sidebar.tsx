@@ -88,8 +88,7 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
             </span>
             <div style={{
               width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
-              background: "linear-gradient(135deg,#06B6D4,#3B82F6)",
-              boxShadow: "0 0 8px rgba(6,182,212,0.6)",
+              background: "#2A6B4A",
             }} />
           </div>
           {/* Desktop close chevron */}
@@ -111,14 +110,15 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
         <button
           onClick={() => setShowForm((s) => !s)}
           style={{
-            width: "100%", padding: "13px 20px",
-            borderRadius: 14, border: "none",
-            background: showForm ? "#F3F4F6" : "linear-gradient(135deg,#06B6D4,#3B82F6)",
-            color: showForm ? "#6B7280" : "white",
+            width: "100%", padding: "0 20px",
+            borderRadius: 24,
+            border: showForm ? "1px solid #E8DDD0" : "none",
+            background: showForm ? "white" : "#2A6B4A",
+            color: showForm ? "#2D2A26" : "white",
             fontSize: 15, fontWeight: 700, cursor: "pointer",
             transition: "all 0.2s", letterSpacing: "0.01em",
-            boxShadow: showForm ? "none" : "0 4px 16px rgba(6,182,212,0.3)",
-            minHeight: 44,
+            boxShadow: "none",
+            height: 48, minHeight: 48,
           }}
         >
           {showForm ? `✕  ${t("close")}` : `🌱  ${t("plantMemory")}`}
@@ -158,13 +158,13 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
       <div style={{ padding: "12px 20px 20px" }}>
         <div style={{
           borderRadius: 14, padding: "12px 14px",
-          background: "linear-gradient(135deg,#F0FDFF,#EFF6FF)",
-          border: "1px solid #E0F2FE",
+          background: "#F0F7F4",
+          border: "1px solid #E8DDD0",
           display: "flex", gap: 10, alignItems: "flex-start",
         }}>
           <span style={{ fontSize: 17, flexShrink: 0 }}>🛡️</span>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 2 }}>{t("privacyGuard")}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#2A6B4A", marginBottom: 2 }}>{t("privacyGuard")}</div>
             <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>
               {t("privacyDesc")}
             </div>
@@ -182,7 +182,7 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
           <div
             onClick={onToggle}
             style={{
-              position: "fixed", inset: 0, zIndex: 699,
+              position: "fixed", inset: 0, zIndex: 999,
               background: "rgba(0,0,0,0.3)",
             }}
           />

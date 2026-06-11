@@ -149,8 +149,8 @@ export function PetForm({ onSuccess }: Props) {
   };
 
   const input =
-    "w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-200 bg-white transition-all";
-  const inputOk = input + " border-gray-200";
+    "w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E8DDD0] bg-white transition-all placeholder:text-[#9C8A7A]";
+  const inputOk = input + " border-[#E8DDD0]";
   const inputErr = input + " border-red-400 focus:ring-red-200 bg-red-50";
   const label = "block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide";
   const errMsg = (msg: string) => (
@@ -175,9 +175,7 @@ export function PetForm({ onSuccess }: Props) {
                 key={s}
                 style={{
                   width: s === mobileStep ? 28 : 8, height: 8, borderRadius: 4,
-                  background: s <= mobileStep
-                    ? "linear-gradient(135deg,#06B6D4,#3B82F6)"
-                    : "#E5E7EB",
+                  background: s <= mobileStep ? "#2A6B4A" : "#E8DDD0",
                   transition: "all 0.3s",
                 }}
               />
@@ -303,7 +301,7 @@ export function PetForm({ onSuccess }: Props) {
                     <img
                       src={src}
                       alt={`Photo ${i + 1}`}
-                      style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, border: "1px solid #E5E7EB" }}
+                      style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, border: "1px solid #E8DDD0" }}
                     />
                     <button
                       type="button"
@@ -324,7 +322,7 @@ export function PetForm({ onSuccess }: Props) {
                     onClick={() => fileRef.current?.click()}
                     style={{
                       width: 72, height: 72, borderRadius: 10,
-                      border: "2px dashed #D1D5DB",
+                      border: "2px dashed #E8DDD0",
                       background: "transparent", cursor: "pointer",
                       fontSize: 22, color: "#9CA3AF",
                     }}
@@ -336,7 +334,7 @@ export function PetForm({ onSuccess }: Props) {
             {imagePreviews.length === 0 && (
               <div
                 onClick={() => !imageLoading && fileRef.current?.click()}
-                className="cursor-pointer flex items-center justify-center border-2 border-dashed border-gray-200 rounded-xl hover:border-cyan-300 transition-colors"
+                className="cursor-pointer flex items-center justify-center border-2 border-dashed border-[#E8DDD0] rounded-xl hover:border-[#2A6B4A] transition-colors"
                 style={{ height: 100, background: "#F9FAFB" }}
               >
                 {imageLoading ? (
@@ -373,7 +371,7 @@ export function PetForm({ onSuccess }: Props) {
               required
             />
             {location && (
-              <div className="mt-1 text-xs text-cyan-600 font-medium">
+              <div className="mt-1 text-xs font-medium" style={{ color: "#2A6B4A" }}>
                 📍 {location.city}, {location.country}
               </div>
             )}
@@ -395,7 +393,7 @@ export function PetForm({ onSuccess }: Props) {
               type="button"
               onClick={() => { setMobileStep((s) => s - 1); setFieldErrors({}); }}
               style={{
-                flex: "0 0 auto", padding: "13px 18px", borderRadius: 12, border: "1.5px solid #E5E7EB",
+                flex: "0 0 auto", padding: "13px 18px", borderRadius: 12, border: "1.5px solid #E8DDD0",
                 background: "white", color: "#374151", fontSize: 14, fontWeight: 600, cursor: "pointer",
               }}
             >
@@ -408,7 +406,7 @@ export function PetForm({ onSuccess }: Props) {
               onClick={goNext}
               style={{
                 flex: 1, padding: "13px", borderRadius: 12, border: "none",
-                background: "linear-gradient(135deg,#06B6D4,#3B82F6)",
+                background: "#2A6B4A",
                 color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer",
               }}
             >
@@ -419,10 +417,10 @@ export function PetForm({ onSuccess }: Props) {
               type="submit"
               disabled={loading || imageLoading}
               style={{
-                flex: 1, padding: "13px", borderRadius: 12, border: "none",
-                background: loading || imageLoading ? "#F3F4F6" : "linear-gradient(135deg,#D946EF,#F97316)",
+                flex: 1, padding: "0 20px", borderRadius: 24, border: "none",
+                background: loading || imageLoading ? "#F3F4F6" : "#2A6B4A",
                 color: loading || imageLoading ? "#9CA3AF" : "white",
-                fontSize: 15, fontWeight: 700,
+                fontSize: 15, fontWeight: 700, height: 48,
                 cursor: loading || imageLoading ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
               }}
@@ -439,10 +437,10 @@ export function PetForm({ onSuccess }: Props) {
           type="submit"
           disabled={loading || imageLoading}
           style={{
-            width: "100%", padding: "13px", borderRadius: 12, border: "none",
-            background: loading || imageLoading ? "#F3F4F6" : "linear-gradient(135deg,#D946EF,#F97316)",
+            width: "100%", padding: "0 20px", borderRadius: 24, border: "none",
+            background: loading || imageLoading ? "#F3F4F6" : "#2A6B4A",
             color: loading || imageLoading ? "#9CA3AF" : "white",
-            fontSize: 15, fontWeight: 700,
+            fontSize: 15, fontWeight: 700, height: 48,
             cursor: loading || imageLoading ? "not-allowed" : "pointer",
             transition: "all 0.2s",
           }}
