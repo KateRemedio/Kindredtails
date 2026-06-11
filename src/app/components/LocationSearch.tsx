@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface LocationResult {
   city: string;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function LocationSearch({ onSelect, required }: Props) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<LocationResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -94,7 +96,7 @@ export function LocationSearch({ onSelect, required }: Props) {
           value={query}
           onChange={handleChange}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Search for a city…"
+          placeholder={t("searchCity")}
           required={required && !selected}
           autoComplete="off"
         />
@@ -142,7 +144,7 @@ export function LocationSearch({ onSelect, required }: Props) {
 
       {noResults && !loading && !open && (
         <div style={{ marginTop: 4, fontSize: 12, color: "#EF4444", fontWeight: 500 }}>
-          City not found — please try another name or spelling.
+          {t("cityNotFound")}
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PetForm } from "./PetForm";
 import type { Pet } from "../utils/api";
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }: Props) {
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
 
   const handleSuccess = (pet: Pet) => {
@@ -119,7 +121,7 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
             minHeight: 44,
           }}
         >
-          {showForm ? "✕  Close" : "🌱  Plant a Memory"}
+          {showForm ? `✕  ${t("close")}` : `🌱  ${t("plantMemory")}`}
         </button>
       </div>
 
@@ -144,7 +146,7 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
       {showForm && (
         <div style={{ padding: "0 20px" }}>
           <p style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 14, lineHeight: 1.5 }}>
-            Your memorial will appear as a glowing light on the global map.
+            {t("mapHint")}
           </p>
           <PetForm onSuccess={handleSuccess} />
         </div>
@@ -162,9 +164,9 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
         }}>
           <span style={{ fontSize: 17, flexShrink: 0 }}>🛡️</span>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 2 }}>Privacy Guard</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 2 }}>{t("privacyGuard")}</div>
             <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>
-              City-Level Fuzzy Geolocation. Your exact location is never stored.
+              {t("privacyDesc")}
             </div>
           </div>
         </div>

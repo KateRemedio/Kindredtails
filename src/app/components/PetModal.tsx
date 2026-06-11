@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { sendTribute, getTributeLogs, getPet, patchPet, deletePet, type Pet, type TributeLog } from "../utils/api";
 import { getSeedCount, getSeedResetAt, useSeed, getOwnerToken } from "../utils/localStorage";
 
@@ -90,6 +91,7 @@ interface Props {
 }
 
 export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted }: Props) {
+  const { t } = useTranslation();
   const [current, setCurrent] = useState<Pet>(pet);
   const [seeds, setSeeds] = useState(getSeedCount);
   const [countdown, setCountdown] = useState("");
@@ -250,7 +252,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
       });
       setCurrent(updated);
       setOwnerView("log");
-      onToast?.("Memorial updated ✏️");
+      onToast?.(t("memorialUpdated"));
     } catch (err) {
       setEditError(String(err));
     }
@@ -285,6 +287,33 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
     border: "1px solid #E5E7EB", outline: "none", background: "white",
     boxSizing: "border-box",
   };
+
+  // Edit form field definitions (built here so t() is in component scope)
+  const editFields = [
+    { key: "petName",       label: t("petName"),       node: (
+      <input value={editName} onChange={(e) => setEditName(e.target.value.slice(0, 100))}
+        maxLength={100} style={inputStyle} placeholder="e.g. Buddy" />
+    )},
+    { key: "petType",       label: t("petType"),       node: (
+      <select value={editType} onChange={(e) => setEditType(e.target.value)} style={inputStyle}>
+        {PET_TYPES.map((typeKey) => (
+          <option key={typeKey} value={typeKey}>{t(`petType_${typeKey}`)}</option>
+        ))}
+      </select>
+    )},
+    { key: "breed",         label: t("breed"),         node: (
+      <input value={editBreed} onChange={(e) => setEditBreed(e.target.value.slice(0, 80))}
+        maxLength={80} style={inputStyle} placeholder="e.g. Labrador" />
+    )},
+    { key: "age",           label: t("age"),           node: (
+      <input value={editAge} onChange={(e) => setEditAge(e.target.value.slice(0, 40))}
+        maxLength={40} style={inputStyle} placeholder="e.g. 13 years" />
+    )},
+    { key: "dateOfPassing", label: t("dateOfPassing"), node: (
+      <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
+        max={new Date().toISOString().split("T")[0]} style={inputStyle} />
+    )},
+  ];
 
   return (
     <>
@@ -449,20 +478,20 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                 display: "flex", borderRadius: 12, overflow: "hidden",
                 border: "1px solid #E5E7EB", marginBottom: 16, background: "#F9FAFB",
               }}>
-                {(["memorial", "log"] as const).map((t) => (
+                {(["memorial", "log"] as const).map((tabKey) => (
                   <button
-                    key={t}
-                    onClick={() => setTab(t)}
+                    key={tabKey}
+                    onClick={() => setTab(tabKey)}
                     style={{
                       flex: 1, padding: "10px 8px", border: "none", cursor: "pointer",
                       fontSize: 12, fontWeight: 600, transition: "all 0.2s",
-                      background: tab === t ? "linear-gradient(135deg,#06B6D4,#3B82F6)" : "transparent",
-                      color: tab === t ? "white" : "#6B7280",
-                      borderRadius: tab === t ? 11 : 0,
+                      background: tab === tabKey ? "linear-gradient(135deg,#06B6D4,#3B82F6)" : "transparent",
+                      color: tab === tabKey ? "white" : "#6B7280",
+                      borderRadius: tab === tabKey ? 11 : 0,
                       minHeight: 44,
                     }}
                   >
-                    {t === "memorial" ? "Memorial" : "Your Memorial ❤️"}
+                    {tabKey === "memorial" ? t("memorial") : t("yourMemorial")}
                   </button>
                 ))}
               </div>
@@ -490,9 +519,9 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     onClick={() => {
                       const url = `${window.location.origin}${window.location.pathname}?pet=${current.id}`;
                       navigator.clipboard.writeText(url).then(() => {
-                        onToast?.("Link copied! 🔗");
+                        onToast?.(t("linkCopied"));
                       }).catch(() => {
-                        onToast?.("Link copied! 🔗");
+                        onToast?.(t("linkCopied"));
                       });
                     }}
                     style={{
@@ -503,14 +532,14 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       minHeight: 36,
                     }}
                   >
-                    🔗 Share memorial
+                    {t("shareMemorial")}
                   </button>
                 </div>
 
                 {/* Translation */}
                 <div style={{ marginBottom: 12, textAlign: "right" }}>
                   {translated === "__english__" ? (
-                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>Already in English</span>
+                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>{t("alreadyEnglish")}</span>
                   ) : (
                     <button
                       onClick={handleTranslate}
@@ -521,7 +550,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         minHeight: 44, padding: "0 4px",
                       }}
                     >
-                      {translating ? "Translating…" : showTranslation ? "See original" : "See translation"}
+                      {translating ? t("translating") : showTranslation ? t("seeOriginal") : t("seeTranslation")}
                     </button>
                   )}
                 </div>
@@ -541,7 +570,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                 {/* Seeds row */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 12, color: "#6B7280" }}>Tribute Seeds:</span>
+                    <span style={{ fontSize: 12, color: "#6B7280" }}>{t("tributeSeeds")}</span>
                     <div style={{ display: "flex", gap: 3 }}>
                       {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} style={{
@@ -554,13 +583,13 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{seeds}/5 ⚡</span>
                   </div>
                   {seeds <= 0 && countdown && (
-                    <span style={{ fontSize: 11, color: "#F97316" }}>Resets in {countdown}</span>
+                    <span style={{ fontSize: 11, color: "#F97316" }}>{t("resetsIn")} {countdown}</span>
                   )}
                 </div>
 
                 {locating && (
                   <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 8, textAlign: "center" }}>
-                    Detecting your city for the tribute log…
+                    {t("detectingCity")}
                   </div>
                 )}
 
@@ -588,7 +617,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       >
                         <span style={{ fontSize: 26 }}>{TRIBUTE_EMOJI[type]}</span>
                         <span style={{ fontSize: 11, fontWeight: 600, color: sending ? "white" : "#374151" }}>
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                          {t(type)}
                         </span>
                         <span style={{ fontSize: 12, fontWeight: 700, color: sending ? "rgba(255,255,255,0.85)" : "#06B6D4" }}>
                           {count}
@@ -606,55 +635,11 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                 {ownerView === "edit" && (
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 14 }}>
-                      Edit Memorial ✏️
+                      {t("editMemorial")}
                     </div>
 
-                    {[
-                      { label: "Pet Name", node: (
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value.slice(0, 100))}
-                          maxLength={100}
-                          style={inputStyle}
-                          placeholder="Pet name"
-                        />
-                      )},
-                      { label: "Pet Type", node: (
-                        <select value={editType} onChange={(e) => setEditType(e.target.value)} style={inputStyle}>
-                          {PET_TYPES.map((t) => (
-                            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                          ))}
-                        </select>
-                      )},
-                      { label: "Breed (optional)", node: (
-                        <input
-                          value={editBreed}
-                          onChange={(e) => setEditBreed(e.target.value.slice(0, 80))}
-                          maxLength={80}
-                          style={inputStyle}
-                          placeholder="e.g. Labrador"
-                        />
-                      )},
-                      { label: "Age or Years Together (optional)", node: (
-                        <input
-                          value={editAge}
-                          onChange={(e) => setEditAge(e.target.value.slice(0, 40))}
-                          maxLength={40}
-                          style={inputStyle}
-                          placeholder="e.g. 13 years"
-                        />
-                      )},
-                      { label: "Date of Passing (optional)", node: (
-                        <input
-                          type="date"
-                          value={editDate}
-                          onChange={(e) => setEditDate(e.target.value)}
-                          max={new Date().toISOString().split("T")[0]}
-                          style={inputStyle}
-                        />
-                      )},
-                    ].map(({ label, node }) => (
-                      <div key={label} style={{ marginBottom: 10 }}>
+                    {editFields.map(({ key, label, node }) => (
+                      <div key={key} style={{ marginBottom: 10 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
                         {node}
                       </div>
@@ -662,7 +647,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
 
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        Memorial Text <span style={{ color: editText.length > 900 ? "#EF4444" : "#9CA3AF", fontWeight: 400 }}>({editText.length}/1000)</span>
+                        {t("memorialText")} <span style={{ color: editText.length > 900 ? "#EF4444" : "#9CA3AF", fontWeight: 400 }}>({editText.length}/1000)</span>
                       </div>
                       <textarea
                         value={editText}
@@ -670,7 +655,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         maxLength={1000}
                         rows={5}
                         style={{ ...inputStyle, resize: "none", fontFamily: "'Courier Prime','Source Code Pro',monospace" }}
-                        placeholder="Share a memory…"
+                        placeholder={t("memorialPlaceholder")}
                       />
                     </div>
 
@@ -684,7 +669,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         onClick={() => setOwnerView("log")}
                         style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                       >
-                        Cancel
+                        {t("cancel")}
                       </button>
                       <button
                         type="button"
@@ -692,7 +677,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         disabled={editSaving}
                         style={{ flex: 2, padding: "11px", borderRadius: 12, border: "none", background: editSaving ? "#F3F4F6" : "linear-gradient(135deg,#06B6D4,#3B82F6)", color: editSaving ? "#9CA3AF" : "white", fontSize: 13, fontWeight: 700, cursor: editSaving ? "not-allowed" : "pointer" }}
                       >
-                        {editSaving ? "Saving…" : "Save Changes"}
+                        {editSaving ? t("saving") : t("saveChanges")}
                       </button>
                     </div>
                   </div>
@@ -703,10 +688,10 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                   <div style={{ textAlign: "center", padding: "8px 0" }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>🕊️</div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 8 }}>
-                      Are you sure?
+                      {t("areYouSure")}
                     </div>
                     <div style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, marginBottom: 20 }}>
-                      This will permanently remove <strong>{current.pet_name}</strong>'s memorial from the garden. This cannot be undone.
+                      {t("removeConfirm", { name: current.pet_name })}
                     </div>
 
                     {deleteError && (
@@ -719,7 +704,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         onClick={() => setOwnerView("log")}
                         style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                       >
-                        Keep Memorial
+                        {t("keepMemorial")}
                       </button>
                       <button
                         type="button"
@@ -727,7 +712,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         disabled={deleteLoading}
                         style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: deleteLoading ? "#F3F4F6" : "#EF4444", color: deleteLoading ? "#9CA3AF" : "white", fontSize: 13, fontWeight: 700, cursor: deleteLoading ? "not-allowed" : "pointer" }}
                       >
-                        {deleteLoading ? "Removing…" : "Remove Forever"}
+                        {deleteLoading ? t("removing") : t("removeForever")}
                       </button>
                     </div>
                   </div>
@@ -742,7 +727,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       onClick={openEdit}
                       style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px solid #E5E7EB", background: "white", color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 8, textAlign: "center" }}
                     >
-                      Edit Memorial ✏️
+                      {t("editMemorial")}
                     </button>
 
                     {/* Delete link */}
@@ -751,7 +736,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                       onClick={() => { setDeleteError(""); setOwnerView("delete"); }}
                       style={{ width: "100%", padding: "4px", background: "none", border: "none", color: "#EF4444", fontSize: 12, cursor: "pointer", marginBottom: 16, textAlign: "center" }}
                     >
-                      Remove this memorial
+                      {t("removeMemorial")}
                     </button>
 
                     {/* Tribute totals */}
@@ -763,7 +748,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                         }}>
                           <div style={{ fontSize: 28 }}>{TRIBUTE_EMOJI[type]}</div>
                           <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}s
+                            {t(type)}s
                           </div>
                           <div style={{ fontSize: 20, fontWeight: 800, color: "#111827" }}>{count}</div>
                         </div>
@@ -771,14 +756,14 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                     </div>
 
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-                      Tribute log
+                      {t("tributeLog")}
                     </div>
 
                     {logsLoading ? (
-                      <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: 24 }}>Loading…</div>
+                      <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: 24 }}>{t("loading")}</div>
                     ) : logs.length === 0 ? (
                       <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: 24 }}>
-                        No tributes yet. Share your memorial and watch the love arrive! 🌸
+                        {t("noTributes")}
                       </div>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>

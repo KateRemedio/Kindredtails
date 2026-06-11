@@ -1,3 +1,4 @@
+import "./i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { MapView } from "./components/MapView";

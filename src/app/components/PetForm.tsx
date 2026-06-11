@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { createPet, uploadPhoto, type Pet } from "../utils/api";
 import { compressImage } from "../utils/imageCompression";
 import { getOwnerToken, saveUserCity, saveOwnedPet } from "../utils/localStorage";
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function PetForm({ onSuccess }: Props) {
+  const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [mobileStep, setMobileStep] = useState(1);
 
@@ -159,7 +161,7 @@ export function PetForm({ onSuccess }: Props) {
   const showStep2 = !isMobile || mobileStep === 2;
   const showStep3 = !isMobile || mobileStep === 3;
 
-  const STEP_LABELS = ["About Your Pet", "Their Story", "Photo & Place"];
+  const STEP_LABELS = [t("step_1"), t("step_2"), t("step_3")];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pb-6">
@@ -182,7 +184,7 @@ export function PetForm({ onSuccess }: Props) {
             ))}
           </div>
           <div style={{ textAlign: "center", fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>
-            Step {mobileStep} of 3 — {STEP_LABELS[mobileStep - 1]}
+            {STEP_LABELS[mobileStep - 1]}
           </div>
         </div>
       )}
@@ -191,7 +193,7 @@ export function PetForm({ onSuccess }: Props) {
       {showStep1 && (
         <>
           <div>
-            <label className={label}>Pet Name</label>
+            <label className={label}>{t("petName")}</label>
             <input
               className={fieldErrors.petName ? inputErr : inputOk}
               style={{ fontFamily: "'Courier Prime', 'Source Code Pro', monospace" }}
@@ -207,16 +209,16 @@ export function PetForm({ onSuccess }: Props) {
           </div>
 
           <div>
-            <label className={label}>Pet Type</label>
+            <label className={label}>{t("petType")}</label>
             <select className={inputOk} value={petType} onChange={(e) => setPetType(e.target.value)}>
-              {PET_TYPES.map((t) => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+              {PET_TYPES.map((type) => (
+                <option key={type} value={type}>{t(`petType_${type}`)}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className={label}>Breed <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
+            <label className={label}>{t("breed")}</label>
             <input
               className={inputOk}
               value={breed}
@@ -233,7 +235,7 @@ export function PetForm({ onSuccess }: Props) {
         <>
           <div>
             <label className={label}>
-              Memorial Text{" "}
+              {t("memorialText")}{" "}
               <span
                 style={{
                   fontWeight: memorialText.length > 540 ? 700 : "normal",
@@ -253,7 +255,7 @@ export function PetForm({ onSuccess }: Props) {
                 setMemorialText(e.target.value.slice(0, 600));
                 if (e.target.value.trim()) setFieldErrors((p) => { const n = { ...p }; delete n.memorialText; return n; });
               }}
-              placeholder="Share a cherished memory or a message to your beloved companion…"
+              placeholder={t("memorialPlaceholder")}
               maxLength={600}
               rows={4}
             />
@@ -261,7 +263,7 @@ export function PetForm({ onSuccess }: Props) {
           </div>
 
           <div>
-            <label className={label}>Age or Years Together <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
+            <label className={label}>{t("age")}</label>
             <input
               className={inputOk}
               value={ageYears}
@@ -272,7 +274,7 @@ export function PetForm({ onSuccess }: Props) {
           </div>
 
           <div>
-            <label className={label}>Date of Passing <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
+            <label className={label}>{t("dateOfPassing")}</label>
             <input
               type="date"
               className={inputOk}
@@ -290,7 +292,7 @@ export function PetForm({ onSuccess }: Props) {
           {/* Photos */}
           <div>
             <label className={label}>
-              Photos{" "}
+              {t("photos")}{" "}
               <span className="text-gray-400 font-normal normal-case">({imagePreviews.length}/3)</span>
             </label>
 
@@ -362,7 +364,7 @@ export function PetForm({ onSuccess }: Props) {
 
           {/* Location */}
           <div>
-            <label className={label}>City / Location</label>
+            <label className={label}>{t("cityLocation")}</label>
             <LocationSearch
               onSelect={(r) => {
                 setLocation(r);
@@ -397,7 +399,7 @@ export function PetForm({ onSuccess }: Props) {
                 background: "white", color: "#374151", fontSize: 14, fontWeight: 600, cursor: "pointer",
               }}
             >
-              ← Back
+              ← {t("back")}
             </button>
           )}
           {mobileStep < 3 ? (
@@ -410,7 +412,7 @@ export function PetForm({ onSuccess }: Props) {
                 color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer",
               }}
             >
-              Continue →
+              {t("continue")}
             </button>
           ) : (
             <button
@@ -425,7 +427,7 @@ export function PetForm({ onSuccess }: Props) {
                 transition: "all 0.2s",
               }}
             >
-              {loading ? "Planting…" : "🌱 Plant This Memory"}
+              {loading ? t("planting") : t("plantThisMemory")}
             </button>
           )}
         </div>
@@ -445,7 +447,7 @@ export function PetForm({ onSuccess }: Props) {
             transition: "all 0.2s",
           }}
         >
-          {loading ? "Planting your memory…" : "🌱 Plant This Memory"}
+          {loading ? t("planting") : t("plantThisMemory")}
         </button>
       )}
     </form>

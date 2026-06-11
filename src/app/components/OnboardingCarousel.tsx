@@ -1,36 +1,24 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { markVisited } from "../utils/localStorage";
 
-const SLIDES = [
-  {
-    emoji: "🌍",
-    title: "A Global Garden of Remembrance",
-    body: "Kindred Tails is a living memorial map where pet owners around the world plant glowing lights to honor beloved companions.",
-  },
-  {
-    emoji: "🌱",
-    title: "Plant Your Memory",
-    body: "Fill in your pet's name, story, and city. A glowing dot will appear on the map — visible to everyone, forever.",
-  },
-  {
-    emoji: "🌸",
-    title: "Leave Tributes",
-    body: "Visit any memorial and leave flowers, treats, or toys. Every tribute is a small act of kindness across the globe.",
-  },
-  {
-    emoji: "🛡️",
-    title: "Privacy First",
-    body: "Only your city is stored — never your exact location. Your pet's memorial is identified by a private token saved in your browser.",
-  },
-];
+const SLIDE_EMOJIS = ["🌍", "🌱", "🌸", "🛡️"];
 
 interface Props {
   onDismiss: () => void;
 }
 
 export function OnboardingCarousel({ onDismiss }: Props) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
+
+  const slides = [
+    { emoji: SLIDE_EMOJIS[0], title: t("onboarding_title_1"), body: t("onboarding_body_1") },
+    { emoji: SLIDE_EMOJIS[1], title: t("onboarding_title_2"), body: t("onboarding_body_2") },
+    { emoji: SLIDE_EMOJIS[2], title: t("onboarding_title_3"), body: t("onboarding_body_3") },
+    { emoji: SLIDE_EMOJIS[3], title: t("onboarding_title_4"), body: t("onboarding_body_4") },
+  ];
 
   const dismiss = () => {
     markVisited();
@@ -38,7 +26,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
   };
 
   const go = (dir: number) => {
-    setIndex((i) => Math.max(0, Math.min(SLIDES.length - 1, i + dir)));
+    setIndex((i) => Math.max(0, Math.min(slides.length - 1, i + dir)));
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -52,8 +40,8 @@ export function OnboardingCarousel({ onDismiss }: Props) {
     touchStartX.current = null;
   };
 
-  const slide = SLIDES[index];
-  const isLast = index === SLIDES.length - 1;
+  const slide = slides[index];
+  const isLast = index === slides.length - 1;
 
   return (
     <div
@@ -85,7 +73,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
             fontSize: 13, color: "#9CA3AF", cursor: "pointer",
           }}
         >
-          Skip
+          {t("skip")}
         </button>
 
         {/* Emoji */}
@@ -109,7 +97,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
 
         {/* Dot indicators */}
         <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <div
               key={i}
               onClick={() => setIndex(i)}
@@ -139,7 +127,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
                 cursor: "pointer",
               }}
             >
-              🌱 Plant a Memory
+              🌱 {t("plantMemory")}
             </button>
             <button
               onClick={dismiss}
@@ -150,7 +138,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
                 fontSize: 15, fontWeight: 600, cursor: "pointer",
               }}
             >
-              Explore the Garden
+              {t("exploreGarden")}
             </button>
           </div>
         ) : (
@@ -164,7 +152,7 @@ export function OnboardingCarousel({ onDismiss }: Props) {
               cursor: "pointer",
             }}
           >
-            Next →
+            {t("continue")}
           </button>
         )}
       </div>
