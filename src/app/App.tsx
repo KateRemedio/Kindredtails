@@ -16,7 +16,6 @@ export default function App() {
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [successPet, setSuccessPet] = useState<Pet | null>(null);
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
-  const [panTo, setPanTo] = useState<{ lat: number; lng: number } | null>(null);
   const [newPetId, setNewPetId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BP);
@@ -95,9 +94,6 @@ export default function App() {
     setPets((prev) => (prev.some((p) => p.id === pet.id) ? prev : [...prev, pet]));
     setSuccessPet(pet);
     setShowSuccessOverlay(true);
-
-    // Fly map to new pet location
-    setPanTo({ lat: pet.lat_fuzzy, lng: pet.lng_fuzzy });
     setNewPetId(pet.id);
 
     // Clear glowing pin after 30s
@@ -156,7 +152,6 @@ export default function App() {
             pets={pets}
             setPets={setPets}
             onPetClick={setSelectedPet}
-            panTo={panTo}
             newPetId={newPetId}
           />
 
@@ -217,13 +212,7 @@ export default function App() {
 
       {/* First-visit onboarding */}
       {showOnboarding && (
-        <OnboardingCarousel onDismiss={() => {
-          setShowOnboarding(false);
-          if (pets.length > 0) {
-            const newest = pets.reduce((a, b) => a.created_at > b.created_at ? a : b);
-            setPanTo({ lat: newest.lat_fuzzy, lng: newest.lng_fuzzy });
-          }
-        }} />
+        <OnboardingCarousel onDismiss={() => setShowOnboarding(false)} />
       )}
     </>
   );
