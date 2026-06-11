@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { PetForm } from "./PetForm";
 import type { Pet } from "../utils/api";
@@ -14,10 +14,31 @@ interface Props {
 export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }: Props) {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
+  const prevIsOpen = useRef(false);
+
+  // Desktop only: when sidebar transitions from closed→open, immediately show the form.
+  // When it closes, reset showForm so it's ready for next open.
+  useEffect(() => {
+    if (!isMobile) {
+      if (isOpen && !prevIsOpen.current) setShowForm(true);
+      if (!isOpen) setShowForm(false);
+    }
+    prevIsOpen.current = isOpen;
+  }, [isOpen, isMobile]);
 
   const handleSuccess = (pet: Pet) => {
     onPetCreated(pet);
     setShowForm(false);
+  };
+
+  // On desktop "✕ Close" collapses the sidebar entirely (no empty panel).
+  // On mobile it just toggles the form as before.
+  const handlePlantButton = () => {
+    if (!isMobile && showForm) {
+      onToggle();
+    } else {
+      setShowForm((s) => !s);
+    }
   };
 
   // --- Desktop styles ---
@@ -108,7 +129,7 @@ export function Sidebar({ isOpen, isMobile, onToggle, onPetCreated, successPet }
 
         {/* Plant button */}
         <button
-          onClick={() => setShowForm((s) => !s)}
+          onClick={handlePlantButton}
           style={{
             width: "100%", padding: "0 20px",
             borderRadius: 24,
