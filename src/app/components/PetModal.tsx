@@ -186,6 +186,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
   const [translated, setTranslated] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
+  const [translateError, setTranslateError] = useState("");
   const [dropEmoji, setDropEmoji] = useState<{ html: string; key: number } | null>(null);
 
   const [isOwner, setIsOwner] = useState(
@@ -284,18 +285,33 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
   const handleTranslate = async () => {
     if (translated !== null) { setShowTranslation((v) => !v); return; }
     setTranslating(true);
+    setTranslateError("");
     try {
+      // Use browser language as target, fall back to "en"
+      const targetLang = (navigator.language || "en").split("-")[0].toLowerCase() || "en";
       const res = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(memoText)}&langpair=auto|en`
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(memoText)}&langpair=|${targetLang}`
       );
+      if (!res.ok) throw new Error("HTTP error");
       const data = await res.json();
-      if (data.responseStatus === 200) {
-        const tx: string = data.responseData.translatedText;
-        const same = tx.trim().toLowerCase() === memoText.trim().toLowerCase();
-        setTranslated(same ? "__english__" : tx);
-        if (!same) setShowTranslation(true);
+      const status = Number(data.responseStatus);
+      if (status === 200) {
+        const tx: string = data.responseData.translatedText || "";
+        // Treat as "same language" if the translation is identical or MyMemory warns quota exceeded
+        const isSame =
+          tx.trim().toLowerCase().replace(/\s+/g, " ") ===
+          memoText.trim().toLowerCase().replace(/\s+/g, " ") ||
+          tx.toUpperCase().includes("MYMEMORY WARNING") ||
+          tx.toUpperCase().includes("QUOTA");
+        setTranslated(isSame ? "__same__" : tx);
+        if (!isSame) setShowTranslation(true);
+      } else {
+        throw new Error(data.responseDetails || `Status ${status}`);
       }
-    } catch {}
+    } catch (e) {
+      console.log("Translation error:", e);
+      setTranslateError("Translation unavailable");
+    }
     setTranslating(false);
   };
 
@@ -588,7 +604,7 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                   border: "1px solid #F3F4F6",
                   maxHeight: 180, overflowY: "auto",
                 }}>
-                  {showTranslation && translated && translated !== "__english__"
+                  {showTranslation && translated && translated !== "__same__"
                     ? translated
                     : memoText}
                 </div>
@@ -619,20 +635,26 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
 
                 {/* Translation */}
                 <div style={{ marginBottom: 12, textAlign: "right" }}>
-                  {translated === "__english__" ? (
-                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>{t("alreadyEnglish")}</span>
+                  {translated === "__same__" ? (
+                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>Already in your language</span>
                   ) : (
-                    <button
-                      onClick={handleTranslate}
-                      disabled={translating}
-                      style={{
-                        background: "none", border: "none", cursor: "pointer",
-                        fontSize: 11, color: "#2A6B4A", fontWeight: 600,
-                        minHeight: 44, padding: "0 4px",
-                      }}
-                    >
-                      {translating ? t("translating") : showTranslation ? t("seeOriginal") : t("seeTranslation")}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleTranslate}
+                        disabled={translating}
+                        style={{
+                          background: "none", border: "none", cursor: translating ? "not-allowed" : "pointer",
+                          fontSize: 11, color: "#2A6B4A", fontWeight: 600,
+                          minHeight: 44, padding: "0 4px",
+                          opacity: translating ? 0.6 : 1,
+                        }}
+                      >
+                        {translating ? t("translating") : showTranslation ? t("seeOriginal") : t("seeTranslation")}
+                      </button>
+                      {translateError && (
+                        <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{translateError}</div>
+                      )}
+                    </>
                   )}
                 </div>
 

@@ -489,7 +489,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
               border: "none",
               background: searching || !searchQuery.trim()
                 ? "#E5E7EB"
-                : "linear-gradient(135deg,#06B6D4,#3B82F6)",
+                : "#2A6B4A",
               color: searching || !searchQuery.trim() ? "#9CA3AF" : "white",
               fontSize: 12,
               fontWeight: 700,
