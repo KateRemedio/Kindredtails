@@ -223,6 +223,7 @@ const MAP_STYLES = `
   }
   .leaflet-container { font-family: 'Inter', 'Roboto', sans-serif !important; }
   .leaflet-control-attribution { font-size: 10px !important; }
+  .kt-filter-bar::-webkit-scrollbar { display: none; }
 `;
 
 const WORLD_BOUNDS: L.LatLngBoundsExpression = [[-75, -180], [85, 180]];
@@ -243,6 +244,10 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Pet type filter
+  const [petFilter, setPetFilter] = useState("all");
+  const petFilterRef = useRef("all");
 
   // Close suggestions when clicking outside the search container
   useEffect(() => {
@@ -419,8 +424,10 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
 
     for (const cluster of clusters) {
       let marker: L.Marker;
+      let markerPetType = "cluster";
       if (cluster.pets.length === 1) {
         const pet = cluster.pets[0];
+        markerPetType = pet.pet_type;
         const isNew = newPetId != null && pet.id === newPetId;
         const icon = isNew ? newPetPinIcon(pet.pet_type) : petPinIcon(pet.pet_type);
         marker = L.marker([cluster.lat, cluster.lng], { icon });
@@ -432,9 +439,23 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         marker.on("click", () => map.setView(clusterCenter, Math.min(currentZoom + 3, 18)));
       }
       marker.addTo(map);
+      // Tag the marker with its pet type so the filter can show/hide it
+      (marker.options as Record<string, unknown>).petType = markerPetType;
+      // Apply current filter immediately
+      const f = petFilterRef.current;
+      marker.setOpacity(f === "all" || markerPetType === "cluster" || markerPetType === f ? 1 : 0);
       markersRef.current.push(marker);
     }
   }, [pets, zoom, onPetClick, newPetId]);
+
+  // Apply filter whenever the selected pill changes
+  useEffect(() => {
+    petFilterRef.current = petFilter;
+    markersRef.current.forEach((marker) => {
+      const mt = (marker.options as Record<string, unknown>).petType as string | undefined;
+      marker.setOpacity(petFilter === "all" || !mt || mt === "cluster" || mt === petFilter ? 1 : 0);
+    });
+  }, [petFilter]);
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
@@ -568,6 +589,65 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
           {searchError}
         </div>
       )}
+
+      {/* Pet type filter bar */}
+      <div
+        className="kt-filter-bar"
+        style={{
+          position: "fixed",
+          bottom: 48,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 900,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(8px)",
+          borderRadius: 50,
+          padding: 10,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+          overflowX: "auto",
+          maxWidth: "calc(100vw - 32px)",
+          scrollbarWidth: "none",
+        }}
+      >
+        {([
+          { type: "all",     label: "All",     color: "#2A6B4A" },
+          { type: "dog",     label: "Dog",     color: "#D4885A" },
+          { type: "cat",     label: "Cat",     color: "#9ABCCC" },
+          { type: "bird",    label: "Bird",    color: "#6AAA5A" },
+          { type: "bunny",   label: "Bunny",   color: "#E898B0" },
+          { type: "reptile", label: "Reptile", color: "#7AB87A" },
+          { type: "fish",    label: "Fish",    color: "#E8A030" },
+          { type: "other",   label: "Other",   color: "#B898CC" },
+        ] as const).map(({ type, label, color }) => {
+          const active = petFilter === type;
+          return (
+            <button
+              key={type}
+              onClick={() => setPetFilter(type)}
+              style={{
+                height: 32,
+                borderRadius: 50,
+                padding: "0 14px",
+                fontSize: 12,
+                fontWeight: 600,
+                border: active ? "none" : "1px solid #E8DDD0",
+                background: active ? color : "white",
+                color: active ? "white" : "#5A4A3A",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                transition: "all 0.15s",
+                fontFamily: "'Inter','Roboto',sans-serif",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

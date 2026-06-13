@@ -317,10 +317,9 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
     setTranslating(true);
     setTranslateError("");
     try {
-    const sourceLang = detectedLang || "es";
-const res = await fetch(
-  `https://api.mymemory.translated.net/get?q=${encodeURIComponent(memoText.slice(0, 450))}&langpair=${sourceLang}|${userLang}`
-);
+      const res = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(memoText)}&langpair=auto|${userLang}`
+      );
       if (!res.ok) throw new Error("HTTP error");
       const data = await res.json();
       const status = Number(data.responseStatus);
