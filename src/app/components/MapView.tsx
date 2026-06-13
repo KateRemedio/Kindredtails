@@ -248,16 +248,28 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
   // Pet type filter
   const [petFilter, setPetFilter] = useState("all");
   const petFilterRef = useRef("all");
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  // Close suggestions when clicking outside the search container
+  // Mobile breakpoint
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+
+  // Close suggestions + filter dropdown when clicking outside the search container
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
+        setFilterOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Track mobile breakpoint
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
   }, []);
 
   const mergePets = useCallback((incoming: Pet[]) => {
@@ -477,7 +489,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
           alignItems: "center",
           gap: 6,
           background: "white",
-          borderRadius: showSuggestions ? "20px 20px 0 0" : 50,
+          borderRadius: (showSuggestions || (isMobile && filterOpen)) ? "20px 20px 0 0" : 50,
           boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
           padding: "6px 6px 6px 16px",
         }}>
@@ -522,7 +534,66 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
           >
             {searching ? "…" : "Go"}
           </button>
+
+          {/* Mobile filter icon button */}
+          {isMobile && (
+            <button
+              onMouseDown={(e) => { e.preventDefault(); setFilterOpen((o) => !o); setShowSuggestions(false); }}
+              style={{
+                width: 36, height: 36, borderRadius: 50, flexShrink: 0,
+                border: "1px solid #E8DDD0",
+                background: petFilter !== "all" ? (PET_TYPE_COLORS[petFilter] || "#2A6B4A") : "white",
+                color: petFilter !== "all" ? "white" : "#5A4A3A",
+                cursor: "pointer", fontSize: 14,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              🔽
+            </button>
+          )}
         </div>
+
+        {/* Mobile filter pill dropdown */}
+        {isMobile && filterOpen && (
+          <div style={{
+            background: "white",
+            borderRadius: "0 0 20px 20px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            borderTop: "1px solid #F3F4F6",
+            padding: "10px 10px 12px",
+            display: "flex", flexWrap: "wrap", gap: 6,
+          }}>
+            {([
+              { type: "all",     label: "All",     color: "#2A6B4A" },
+              { type: "dog",     label: "Dog",     color: "#D4885A" },
+              { type: "cat",     label: "Cat",     color: "#9ABCCC" },
+              { type: "bird",    label: "Bird",    color: "#6AAA5A" },
+              { type: "bunny",   label: "Bunny",   color: "#E898B0" },
+              { type: "reptile", label: "Reptile", color: "#7AB87A" },
+              { type: "fish",    label: "Fish",    color: "#E8A030" },
+              { type: "other",   label: "Other",   color: "#B898CC" },
+            ] as const).map(({ type, label, color }) => {
+              const active = petFilter === type;
+              return (
+                <button
+                  key={type}
+                  onMouseDown={() => { setPetFilter(type); setFilterOpen(false); }}
+                  style={{
+                    height: 32, borderRadius: 50, padding: "0 14px",
+                    fontSize: 12, fontWeight: 600,
+                    border: active ? "none" : "1px solid #E8DDD0",
+                    background: active ? color : "white",
+                    color: active ? "white" : "#5A4A3A",
+                    cursor: "pointer", whiteSpace: "nowrap",
+                    fontFamily: "'Inter','Roboto',sans-serif",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Autocomplete dropdown */}
         {showSuggestions && suggestions.length > 0 && (
@@ -590,8 +661,8 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
         </div>
       )}
 
-      {/* Pet type filter bar */}
-      <div
+      {/* Pet type filter bar — desktop only */}
+      {!isMobile && <div
         className="kt-filter-bar"
         style={{
           position: "fixed",
@@ -647,7 +718,7 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
             </button>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }
