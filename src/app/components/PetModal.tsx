@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { sendTribute, getTributeLogs, getPet, patchPet, deletePet, type Pet, type TributeLog } from "../utils/api";
 import { getSeedCount, getSeedResetAt, useSeed, getOwnerToken } from "../utils/localStorage";
@@ -164,6 +164,30 @@ async function getTributerLocation(): Promise<{ city: string; country: string }>
   });
 }
 
+// Lightweight language detection using Unicode ranges and stop-word scoring.
+// Returns a 2-char lang code (en/es/fr/zh/ja/ko/ru/pt/fil) or null if uncertain.
+function detectTextLanguage(text: string): string | null {
+  if (text.length < 15) return null;
+  if (/[぀-ヿ]/.test(text)) return "ja"; // hiragana / katakana
+  if (/[一-鿿㐀-䶿]/.test(text)) return "zh"; // CJK
+  if (/[가-힯ᄀ-ᇿ]/.test(text)) return "ko"; // Hangul
+  if (/[Ѐ-ӿ]/.test(text)) return "ru"; // Cyrillic
+  const words = text.toLowerCase().split(/[\s,!?.;:()"']+/).filter((w) => w.length > 1);
+  if (words.length < 4) return null;
+  const sw: Record<string, string[]> = {
+    es: ["el","la","los","las","de","que","y","en","un","una","es","con","por","para","se","del","al","me","mi","su"],
+    fr: ["le","la","les","de","et","est","en","un","une","du","des","que","je","il","nous","vous","sur","pas","plus","au"],
+    pt: ["de","e","em","um","uma","com","por","para","se","do","da","dos","das","ao","mas","como","seu","sua","ele","ela"],
+    fil:["ang","ng","sa","na","at","ay","mga","ko","ako","siya","niya","naman","po","din","ito","nang","wala","kaya"],
+    en: ["the","is","was","are","and","of","to","in","that","he","she","it","we","they","my","you","me","this","her","his"],
+  };
+  const scores: Record<string, number> = { es:0, fr:0, pt:0, fil:0, en:0 };
+  for (const w of words) for (const [lang, list] of Object.entries(sw)) if (list.includes(w)) scores[lang]++;
+  const max = Math.max(...Object.values(scores));
+  if (max < 2) return null;
+  return Object.entries(scores).sort(([,a],[,b]) => b - a)[0][0];
+}
+
 interface Props {
   pet: Pet;
   onClose: () => void;
@@ -173,7 +197,7 @@ interface Props {
 }
 
 export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [current, setCurrent] = useState<Pet>(pet);
   const [seeds, setSeeds] = useState(getSeedCount);
   const [countdown, setCountdown] = useState("");
@@ -226,6 +250,12 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
 
   const { text: memoText, meta } = parseMemoText(current.memorial_text);
   const photos = parsePhotoUrls(current.photo_url);
+
+  // Derive user's 2-char lang from i18next and detect memorial text language.
+  // Hide the translate button when the text appears to already be in the user's language.
+  const userLang = useMemo(() => i18n.language.split("-")[0].toLowerCase().slice(0, 2) || "en", [i18n.language]);
+  const detectedLang = useMemo(() => detectTextLanguage(memoText), [memoText]);
+  const showTranslateButton = detectedLang === null || detectedLang !== userLang;
 
   // Seed countdown
   useEffect(() => {
@@ -287,10 +317,8 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
     setTranslating(true);
     setTranslateError("");
     try {
-      // Use browser language as target, fall back to "en"
-      const targetLang = (navigator.language || "en").split("-")[0].toLowerCase() || "en";
       const res = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(memoText)}&langpair=|${targetLang}`
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(memoText)}&langpair=auto|${userLang}`
       );
       if (!res.ok) throw new Error("HTTP error");
       const data = await res.json();
@@ -633,30 +661,32 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
                   </button>
                 </div>
 
-                {/* Translation */}
-                <div style={{ marginBottom: 12, textAlign: "right" }}>
-                  {translated === "__same__" ? (
-                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>Already in your language</span>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleTranslate}
-                        disabled={translating}
-                        style={{
-                          background: "none", border: "none", cursor: translating ? "not-allowed" : "pointer",
-                          fontSize: 11, color: "#2A6B4A", fontWeight: 600,
-                          minHeight: 44, padding: "0 4px",
-                          opacity: translating ? 0.6 : 1,
-                        }}
-                      >
-                        {translating ? t("translating") : showTranslation ? t("seeOriginal") : t("seeTranslation")}
-                      </button>
-                      {translateError && (
-                        <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{translateError}</div>
-                      )}
-                    </>
-                  )}
-                </div>
+                {/* Translation — only shown when text appears to be in a foreign language */}
+                {(showTranslateButton || translated !== null) && (
+                  <div style={{ marginBottom: 12, textAlign: "right" }}>
+                    {translated === "__same__" ? (
+                      <span style={{ fontSize: 11, color: "#9CA3AF" }}>Already in your language</span>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleTranslate}
+                          disabled={translating}
+                          style={{
+                            background: "none", border: "none", cursor: translating ? "not-allowed" : "pointer",
+                            fontSize: 11, color: "#2A6B4A", fontWeight: 600,
+                            minHeight: 44, padding: "0 4px",
+                            opacity: translating ? 0.6 : 1,
+                          }}
+                        >
+                          {translating ? t("translating") : showTranslation ? t("seeOriginal") : t("seeTranslation")}
+                        </button>
+                        {translateError && (
+                          <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{translateError}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Personality tags (legacy) */}
                 {(current.personality_tags || []).length > 0 && (
