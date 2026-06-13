@@ -459,15 +459,22 @@ export function MapView({ pets, setPets, onPetClick, newPetId }: Props) {
       markersRef.current.push(marker);
     }
   }, [pets, zoom, onPetClick, newPetId]);
-
-  // Apply filter whenever the selected pill changes
-  useEffect(() => {
-    petFilterRef.current = petFilter;
-    markersRef.current.forEach((marker) => {
-      const mt = (marker.options as Record<string, unknown>).petType as string | undefined;
-      marker.setOpacity(petFilter === "all" || !mt || mt === "cluster" || mt === petFilter ? 1 : 0);
-    });
-  }, [petFilter]);
+  
+// Apply filter whenever the selected pill changes
+useEffect(() => {
+  petFilterRef.current = petFilter;
+  markersRef.current.forEach((marker) => {
+    const mt = (marker.options as Record<string, unknown>).petType as string | undefined;
+    const visible = petFilter === "all" || !mt || mt === "cluster" || mt === petFilter;
+    if (visible) {
+      marker.setOpacity(1);
+      marker.getElement()?.style.setProperty("pointer-events", "auto");
+    } else {
+      marker.setOpacity(0);
+      marker.getElement()?.style.setProperty("pointer-events", "none");
+    }
+  });
+}, [petFilter]);
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
