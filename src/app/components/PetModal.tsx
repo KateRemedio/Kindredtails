@@ -305,7 +305,8 @@ export function PetModal({ pet, onClose, onTributeSuccess, onToast, onPetDeleted
       onTributeSuccess(updated);
       const fromLabel = loc.city && loc.city !== "Unknown location" ? ` from ${loc.city}` : "";
       const iconHtml = buildTributeIconHtml(type, 20);
-      onToast?.(`<span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${iconHtml}<span>You sent a ${type} to ${current.pet_name}${fromLabel}</span></span>`);
+      const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      onToast?.(`<span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${iconHtml}<span>You sent a ${type} to ${escHtml(current.pet_name)}${escHtml(fromLabel)}</span></span>`);
     } catch (e) {
       console.log("Tribute error:", e);
     }

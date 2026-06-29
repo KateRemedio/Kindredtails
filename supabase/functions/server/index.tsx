@@ -98,7 +98,7 @@ app.post(`${BASE}/pets`, async (c) => {
   console.log("[POST /pets] Request received");
   try {
     const body = await c.req.json();
-    console.log("[POST /pets] Body parsed:", JSON.stringify(body));
+    console.log("[POST /pets] Body parsed:", JSON.stringify({ ...body, owner_token: "[REDACTED]" }));
 
     const { pet_name, pet_type, memorial_text, photo_url, personality_tags, city, country, owner_token } = body;
 
@@ -141,7 +141,7 @@ app.post(`${BASE}/pets`, async (c) => {
       toys: 0,
       owner_token: owner_token || crypto.randomUUID(),
     };
-    console.log("[POST /pets] Attempting DB insert with payload:", JSON.stringify(insertPayload));
+    console.log("[POST /pets] Attempting DB insert with payload:", JSON.stringify({ ...insertPayload, owner_token: "[REDACTED]" }));
 
     const { data, error } = await supabase
       .from("pets")
