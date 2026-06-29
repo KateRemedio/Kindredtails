@@ -48,7 +48,7 @@ What got left out mattered as much as what got built.
 
 ## Tools used
 
-Figma, Figma Agents (for explorations and the design system), Figma Make (Claude Sonnet), Supabase, Leaflet.js, and Vercel — all chosen to keep the project running at **$0/month**. That constraint shaped the product more than a blank check ever would have.
+Figma, Figma Agents (for explorations and the design system), Figma Make, Supabase, Leaflet.js, and Vercel — all chosen to keep the project running at **$0/month**. That constraint shaped the product more than a blank check ever would have.
 
 ## Privacy and security
 
@@ -70,10 +70,6 @@ npm run dev
 The frontend connects to a public Supabase project — no environment setup needed to run it as-is. If you want to point it at your own Supabase project instead, update `projectId` and `publicAnonKey` in `src/app/utils/supabase/info.tsx`.
 
 The backend (Supabase Edge Functions in `/supabase/functions/server`) requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to be set in your Supabase project's environment settings — these are never stored in this repo.
-
-## Built with
-
-This project was built using an AI-assisted development methodology — a structured workflow where AI-generated code passes through a three-perspective review (product, engineering, QA) before being accepted, rather than being used passively.
 
 ---
 
